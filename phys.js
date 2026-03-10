@@ -296,8 +296,6 @@ function detectCollision(a, b) {
 				depth: combined_rad - mag
 			}
 		}
-		
-		return false
 	}
 	
 	// Polygon-on-ball collision
@@ -319,6 +317,32 @@ function detectCollision(a, b) {
 				}
 			}
 			let pointAx = ball.pos.subtract(closestVertex)
+			let min = Infinity
+			let bestAx = null
+			for (let x = 0; x < axes.length; x++) {
+				let ax = axes[x]
+				let p1 = ball.project(ax)
+				let p2 = poly.project(ax, triangle)
+				let depth = overlap(p1, p2)
+				if (depth === 0) {
+					bestAx = null
+					break
+				}
+				else if (Math.abs(depth) < min) {
+					min = Math.abs(depth)
+					bestAx = ax
+				}
+			}
+			if (bestAx != null) {
+				let center = b.pos.subtract(a.pos)
+				if (bestAx.dot(center) < 0) {
+					bestAx = bestAx.multiply(-1)
+				}
+				return {
+					normal: bestAx,
+					depth: min
+				}
+			}
 		}
 	}
 	
@@ -363,6 +387,9 @@ function detectCollision(a, b) {
 			}
 		}
 	}
+
+	// Return false if no collision is found
+	return false
 }
 
 // Corrects the overlap caused by collisions
@@ -436,4 +463,5 @@ function step(dt) {
 			}
 		}
 	}
+
 }
