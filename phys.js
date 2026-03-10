@@ -322,6 +322,8 @@ function detectCollision(a, b) {
 		let ball = a_ball ? a : b
 		let poly = a_ball ? b : a
 		let triangles = poly.shape.triangles
+		let globalAx = null
+		let globalMin = Infinity
 		for (let i = 0; i < triangles.length; i++) {
 			let triangle = triangles[i]
 			let axes = poly.getPerpAxes(triangle)
@@ -336,6 +338,7 @@ function detectCollision(a, b) {
 				}
 			}
 			let pointAx = ball.pos.subtract(closestVertex)
+			axes.push(pointAx.normalize())
 			let min = Infinity
 			let bestAx = null
 			for (let x = 0; x < axes.length; x++) {
@@ -357,10 +360,16 @@ function detectCollision(a, b) {
 				if (bestAx.dot(center) < 0) {
 					bestAx = bestAx.multiply(-1)
 				}
-				return {
-					normal: bestAx,
-					depth: min
+				if (min < globalMin) {
+					globalMin = min
+					globalAx = bestAx
 				}
+			}
+		}
+		if (globalAx != null) {
+			return {
+				normal: globalAx,
+				depth: globalMin
 			}
 		}
 	}
@@ -481,4 +490,5 @@ function step(dt) {
 	}
 
 }
+
 
