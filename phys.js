@@ -39,7 +39,6 @@ function overlap(a, b) {
 }
 
 // 2D vector class
-
 class Vector2 {
 	
 	constructor(x=0, y=0) {
@@ -81,6 +80,15 @@ class Vector2 {
 	theta() {
 		return Math.atan2(this.y, this.x)
 	}
+
+	rotate(alpha) {
+		let theta = this.theta()
+		let beta = alpha + theta
+		let mag = this.magnitude()
+		let x = mag * Math.cos(beta)
+		let y = mag * Math.sin(beta)
+		return new Vector2(x, y)
+	}
 	
 	// Scale operations
 	
@@ -102,23 +110,32 @@ class Vector2 {
 }
 
 // Rigidbody class (physics object)
-
 class Rigidbody {
 	
-	constructor(mass=0, pos=null, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null) {
+	constructor(mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0) {
+		// Main physical properties
 		this.mass = mass
 		this.pos = pos || new Vector2()
 		this.vel = vel || new Vector2()
+
+		// Angular properties
+		this.theta = theta
+		this.angVel = angVel
+
+		// Force storage
 		this.force = new Vector2()
+
+		// Shape properties
 		this.shape = shape
 		this.bounce = bounce
 		this.shape.centroid = this.centroid()
 		this.triangulate()
+
+		// Add to global rigidbody storage
 		rbs.push(this)
 	}
 	
 	// Update positions each frame
-	
 	update(dt=0) {
 		if (this.mass === 0) return
 		let g_vector = new Vector2(0, -g)
@@ -130,20 +147,26 @@ class Rigidbody {
 		
 		this.force = new Vector2()
 	}
+
+	// Convert local vertex to world space
+	convertToWorld(point=null) {
+		if (point == null) return
+		// Rotate point
+		let rotated = point.rotate(this.theta)
+		return this.pos.add(rotated)  // Return translated point
+	}
 	
 	// Adds an impulse to the object
-	
 	addImpulse(impulse=null) {
 		if (this.mass === 0) return
 		impulse = impulse || new Vector2()
 		this.vel = this.vel.add(impulse.divide(this.mass))
 	}
 	
-	// Calculates the center of mass
-	
+	// Calculates the center of mass (local)
 	centroid() {
 		if (this.shape.type == 'Ball') {
-			return new Vector2(this.pos.x, this.pos.y)
+			return new Vector2(0, 0)
 		}
 		else if (this.shape.type == 'Polygon') {
 			let xSum = 0
@@ -163,7 +186,6 @@ class Rigidbody {
 	}
 	
 	// Triangulates the rigidbody for collision calculations
-	
 	triangulate() {
 		if (this.shape.type != 'Polygon') return false
 		let triangles = []
@@ -227,7 +249,6 @@ class Rigidbody {
 	}
 	
 	// Projects the rigidbody's vertices onto a normalized axis for the SAT
-	
 	project(ax, vertices=null) {
 		// Normalize axis for dot product calculations
 		ax = ax.normalize()
@@ -246,7 +267,7 @@ class Rigidbody {
 			let max = -Infinity
 			for (let i = 0; i < target.length; i++) {
 				// Calculate projection for each vertex
-				let v = this.pos.add(target[i])
+				let v = this.convertToWorld(target[i])
 				let dot = v.dot(ax)
 				if (dot < min) {
 					min = dot
@@ -260,14 +281,13 @@ class Rigidbody {
 	}
 	
 	// Gets the perpendicular axes to project onto
-	
 	getPerpAxes(vertices=null) {
 		if (this.shape.type != 'Polygon') return false
 		let target = vertices || this.shape.vertices
 		let axes = []
 		for (let i = 0; i < target.length; i++) {
-			let v1 = target[i]
-			let v2 = target[(i + 1 + target.length) % target.length]
+			let v1 = this.convertToWorld(target[i])
+			let v2 = this.convertToWorld(target[(i + 1 + target.length) % target.length])
 			let edge = v2.subtract(v1)
 			axes.push(edge.perp().normalize())
 		}
@@ -277,7 +297,6 @@ class Rigidbody {
 }
 
 // Detects collisions and returns the normal and overlap depth
-
 function detectCollision(a, b) {
 	let a_ball = a.shape.type == 'Ball'
 	let b_ball = b.shape.type == 'Ball'
@@ -306,10 +325,10 @@ function detectCollision(a, b) {
 		for (let i = 0; i < triangles.length; i++) {
 			let triangle = triangles[i]
 			let axes = poly.getPerpAxes(triangle)
-			let closestVertex = triangle[0]
+			let closestVertex = poly.convertToWorld(triangle[0])
 			let minDist = closestVertex.subtract(ball.pos).magnitude()
 			for (let j = 1; j < triangle.length; j++) {
-				let v = triangle[j]
+				let v = poly.convertToWorld(triangle[j])
 				let dist = v.subtract(ball.pos).magnitude()
 				if (dist < minDist) {
 					closestVertex = v
@@ -393,7 +412,6 @@ function detectCollision(a, b) {
 }
 
 // Corrects the overlap caused by collisions
-
 function correctCollision(a, b, info) {
 	// Gather inverse masses for later calculations
 	let a_inv = a.mass === 0 ? 0 : 1 / a.mass
@@ -414,7 +432,6 @@ function correctCollision(a, b, info) {
 }
 
 // Resolves collisions by adding impulses
-
 function resolveCollision(a, b, info) {
 	// Gather inverse masses for later
 	let a_inv = a.mass === 0 ? 0 : 1 / a.mass
@@ -442,7 +459,6 @@ function resolveCollision(a, b, info) {
 }
 
 // Calculate one physics step
-
 function step(dt) {
 	// Update phase
 	for (let i = 0; i < rbs.length; i++) {
@@ -465,3 +481,4 @@ function step(dt) {
 	}
 
 }
+
