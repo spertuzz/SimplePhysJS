@@ -118,10 +118,6 @@ class Rigidbody {
 		this.pos = pos || new Vector2()
 		this.vel = vel || new Vector2()
 
-		// Angular properties
-		this.theta = theta
-		this.angVel = angVel
-
 		// Force storage
 		this.force = new Vector2()
 
@@ -130,6 +126,11 @@ class Rigidbody {
 		this.bounce = bounce
 		this.shape.centroid = this.centroid()
 		this.triangulate()
+
+		// Angular properties
+		this.theta = theta
+		this.angVel = angVel
+		this.inertia = this.inertia()
 
 		// Add to global rigidbody storage
 		rbs.push(this)
@@ -182,6 +183,28 @@ class Rigidbody {
 			xSum /= 6 * A
 			ySum /= 6 * A
 			return new Vector2(xSum, ySum)
+		}
+	}
+
+	inertia() {
+		if (this.shape.type == 'Ball') {
+			return this.mass * this.shape.radius ** 2 / 2
+		}
+		else if (this.shape.type == 'Polygon') {
+			let triangles = this.shape.triangles
+			let A = polyArea(this.shape.vertices)
+			let sumInertia = 0
+			for (let i = 0; i < triangles.length; i++) {
+				let triangle = triangles[i]
+				let t1 = triangle[0]
+				let t2 = triangle[1]
+				let t3 = triangle[2]
+				let m = this.mass * polyArea(triangle) / A
+				let calc = t1.x ** 2 + t2.x ** 2 + t3.x ** 2 + t1.y ** 2 + t2.y ** 2 + t3.y ** 2 + (t1.x + t2.x + t3.x) ** 2 + (t1.y + t2.y + t3.y) ** 2
+				sumInertia += calc * m / 12
+			}
+			let squareDist = this.shape.centroid.magnitude() ** 2
+			return sumInertia - this.mass * squareDist
 		}
 	}
 	
@@ -498,6 +521,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
