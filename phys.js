@@ -379,6 +379,8 @@ function detectCollision(a, b) {
 		// Gather axis for SAT comparison
 		let a_triangles = a.shape.triangles
 		let b_triangles = b.shape.triangles
+		let globalAx = null
+		let globalMin = Infinity
 		for (let i = 0; i < a_triangles.length; i++) {
 			for (let j = 0; j < b_triangles.length; j++) {
 				let min = Infinity
@@ -407,11 +409,17 @@ function detectCollision(a, b) {
 					if (bestAx.dot(center) < 0) {
 						bestAx = bestAx.multiply(-1)
 					}
-					return {
-						normal: bestAx,
-						depth: min
+					if (min < globalMin) {
+						globalMin = min
+						globalAx = bestAx
 					}
 				}
+			}
+		}
+		if (globalAx != null) {
+			return {
+				normal: globalAx,
+				depth: globalMin
 			}
 		}
 	}
@@ -490,5 +498,6 @@ function step(dt) {
 	}
 
 }
+
 
 
