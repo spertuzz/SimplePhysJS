@@ -74,6 +74,10 @@ class Vector2 {
 	cross(that) {
 		return this.x * that.y - this.y * that.x
 	}
+
+	scalarCross(scalar) {
+		return new Vector2(-scalar * this.y, scalar * this.x)
+	}
 	
 	// Angle
 	
@@ -158,10 +162,19 @@ class Rigidbody {
 	}
 	
 	// Adds an impulse to the object
-	addImpulse(impulse=null) {
+	addImpulse(impulse=null, point=null) {
 		if (this.mass === 0) return
+		let worldCentroid = this.convertToWorld(centroid)
 		impulse = impulse || new Vector2()
+		point = point || worldCentroid
+
+		// Linear velocity
 		this.vel = this.vel.add(impulse.divide(this.mass))
+
+		// Angular velocity
+		let bp = point.subtract(worldCentroid)
+		let v = bp.cross(impulse)
+		this.angVel += v / this.inertia
 	}
 	
 	// Calculates the center of mass (local)
@@ -513,22 +526,41 @@ function resolveCollision(a, b, info) {
 	
 	// Ignore collisions between two immovable masses
 	if (total_inv === 0) return
-	
-	// Dot product to later scale for collision impulse
-	let vel_diff = b.vel.subtract(a.vel)
+
+	// Calculate restitution for later
 	let restitution = a.bounce * b.bounce
-	let impulse = vel_diff.dot(info.normal)
+
+	// Calculate centroids
+	let aCenter = a.convertToWorld(a.shape.centroid)
+	let bCenter = b.convertToWorld(b.shape.centroid)
 	
-	// Ignore objects already moving away from each other
-	if (impulse > 0) return
+	// Do for each contact point equally
+	let div = info.point.length
+	for (let i = 0; i < div; i++) {
+		let point = info.point[i]
+		let bpA = point.subtract(aCenter)
+		let bpB = point.subtract(bCenter)
 	
-	// Finalize impulse magnitute calculation
-	impulse *= -(1 + restitution)
-	impulse /= total_inv
-	
-	// Add relevant impulses
-	a.addImpulse(info.normal.multiply(-impulse))
-	b.addImpulse(info.normal.multiply(impulse))
+		// Dot product to later scale for collision impulse
+		let a_vel = a.vel.add(bpA.scalarCross(a.angVel))
+		let b_vel = b.vel.add(bpB.scalarCross(b.angVel))
+		let vel_diff = b_vel.subtract(a_vel)
+		let impulse = vel_diff.dot(info.normal)
+		
+		// Ignore objects already moving away from each other
+		if (impulse > 0) return
+		
+		// Finalize impulse magnitute calculation
+		impulse *= -(1 + restitution)
+		total_inv += (bpA.cross(info.normal) ** 2) / a.inertia
+		total_inv += (bpB.cross(info.normal) ** 2) / b.inertia
+		impulse /= total_inv
+		impulse /= div
+		
+		// Add relevant impulses
+		a.addImpulse(info.normal.multiply(-impulse), point)
+		b.addImpulse(info.normal.multiply(impulse), point)
+	}
 }
 
 // Calculate one physics step
@@ -554,6 +586,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
