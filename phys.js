@@ -330,12 +330,15 @@ function detectCollision(a, b) {
 		let combined_rad = a.shape.radius + b.shape.radius
 		let pos_diff = b.pos.subtract(a.pos)
 		let mag = pos_diff.magnitude()
+		let norm = pos_diff.normalize()
+		let dep = combined_rad - mag
 		
 		// Determine if the distance between them is less than this max
 		if (mag < combined_rad) {
 			return {
-				normal: pos_diff.normalize(),
-				depth: combined_rad - mag
+				normal: norm,
+				depth: ep,
+				point: [a.pos.add(norm.multiply(a.shape.radius - dep/2))]
 			}
 		}
 	}
@@ -390,9 +393,17 @@ function detectCollision(a, b) {
 			}
 		}
 		if (globalAx != null) {
+			let point = null
+			if (a_ball) {
+				point = a.pos.add(globalAx.multiply(a.shape.radius - globalMin/2))
+			}
+			else {
+				point = b.pos.subtract(globalAx.multiply(b.shape.radius - globalMin / 2))
+			}
 			return {
 				normal: globalAx,
-				depth: globalMin
+				depth: globalMin,
+				point: [point]
 			}
 		}
 	}
@@ -404,13 +415,16 @@ function detectCollision(a, b) {
 		let b_triangles = b.shape.triangles
 		let globalAx = null
 		let globalMin = Infinity
+		let notOwner = null
 		for (let i = 0; i < a_triangles.length; i++) {
 			for (let j = 0; j < b_triangles.length; j++) {
 				let min = Infinity
 				let bestAx = null
 				let axes = []
-				axes.push(...a.getPerpAxes(a_triangles[i]))
-				axes.push(...b.getPerpAxes(b_triangles[j]))
+				let aAxes = a.getPerpAxes(a_triangles[i])
+				let bAxes = b.getPerpAxes(b_triangles[j])
+				axes.push(...aAxes)
+				axes.push(...bAxes)
 				for (let x = 0; x < axes.length; x++) {
 					let ax = axes[x]
 					let t1 = a_triangles[i]
@@ -435,14 +449,30 @@ function detectCollision(a, b) {
 					if (min < globalMin) {
 						globalMin = min
 						globalAx = bestAx
+						notOwner = x < aAxes.length ? b : a
 					}
 				}
 			}
 		}
 		if (globalAx != null) {
+			let notVertices = notOwner.shape.vertices
+			let mins = []
+			let currentMin = Infinity
+			for (let i = 0; i < notVertices.length; i++) 
+				let v = notVertices[i]
+				let dot = v.dot(globalAx)
+				if (dot < currentMin) {
+					currentMin = dot
+					mins = [v]
+				}
+				else if (dot == currentMin) {
+					mins.push(v)
+				}
+			}
 			return {
 				normal: globalAx,
-				depth: globalMin
+				depth: globalMin,
+				point: mins
 			}
 		}
 	}
@@ -521,6 +551,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
