@@ -251,7 +251,7 @@ class Rigidbody {
 				
 				// Use cross product formula to determine if the angle is convex
 				let cross = va.cross(vc)
-				if (cross > 0) {
+				if (cross < 0) {
 					let ear = true
 					// Checking phase (if there are other vertices inside)
 					let goal = polyArea([a, b, c])
@@ -592,6 +592,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
