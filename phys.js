@@ -558,7 +558,7 @@ function resolveCollision(a, b, info) {
 		// Finalize impulse magnitute calculation
 		impulse *= -(1 + restitution)
 		let this_inv = total_inv + (bpA.cross(info.normal) ** 2) / a.inertia + (bpB.cross(info.normal) ** 2) / b.inertia
-		impulse /= total_inv
+		impulse /= this_inv
 		impulse /= div
 		
 		// Add relevant impulses
@@ -590,6 +590,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
