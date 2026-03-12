@@ -1,6 +1,19 @@
 const canvas = document.getElementById('main')
 const ctx = canvas.getContext('2d')
 
+// Rigidbodies
+
+new Rigidbody(0, new Vector2(0, 10), 0, {
+  type: 'Polygon',
+  vertices: [
+    new Vector2(300, 10),
+    new Vector2(300, -10),
+    new Vector2(-300, -10),
+    new Vector2(-300, 10)
+  ] 
+})
+
+// Render frame
 let lastTime = performance.now()
 function render() {
   // Calculate change in time
@@ -17,7 +30,7 @@ function render() {
   // Set up canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
-  ctx.translate(0, canvas.height);
+  ctx.translate(canvas.width/2, canvas.height);
   ctx.scale(1, -1);
 
   // Line settings
