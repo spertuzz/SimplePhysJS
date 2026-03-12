@@ -449,17 +449,16 @@ function detectCollision(a, b) {
 					if (min < globalMin) {
 						globalMin = min
 						globalAx = bestAx
-						notOwner = x < aAxes.length ? b : a
+						notOwner = x < aAxes.length ? t2 : t1
 					}
 				}
 			}
 		}
 		if (globalAx != null) {
-			let notVertices = notOwner.shape.vertices
 			let mins = []
 			let currentMin = Infinity
-			for (let i = 0; i < notVertices.length; i++) 
-				let v = notVertices[i]
+			for (let i = 0; i < notOwner.length; i++) 
+				let v = notOwner[i]
 				let dot = v.dot(globalAx)
 				if (dot < currentMin) {
 					currentMin = dot
@@ -551,6 +550,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
