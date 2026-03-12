@@ -22,7 +22,7 @@ function render() {
     ctx.scale(1, -1);
     
     // Line settings
-    ctx.strokeStyle = '#000000'; // Black
+    ctx.strokeStyle = '#ffffff'; // Black
     ctx.lineWidth = 2;
     
     // Draw each rigidbody
