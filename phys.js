@@ -337,7 +337,7 @@ function detectCollision(a, b) {
 		if (mag < combined_rad) {
 			return {
 				normal: norm,
-				depth: ep,
+				depth: dep,
 				point: [a.pos.add(norm.multiply(a.shape.radius - dep/2))]
 			}
 		}
@@ -416,9 +416,11 @@ function detectCollision(a, b) {
 		let globalAx = null
 		let globalMin = Infinity
 		let notOwner = null
+		let notObject = null
 		for (let i = 0; i < a_triangles.length; i++) {
 			for (let j = 0; j < b_triangles.length; j++) {
 				let min = Infinity
+				let foundX = 0
 				let bestAx = null
 				let axes = []
 				let aAxes = a.getPerpAxes(a_triangles[i])
@@ -439,6 +441,7 @@ function detectCollision(a, b) {
 					else if (Math.abs(depth) < min) {
 						min = Math.abs(depth)
 						bestAx = ax
+						foundX = x
 					}
 				}
 				if (bestAx != null) {
@@ -449,7 +452,8 @@ function detectCollision(a, b) {
 					if (min < globalMin) {
 						globalMin = min
 						globalAx = bestAx
-						notOwner = x < aAxes.length ? t2 : t1
+						notOwner = foundX < aAxes.length ? t2 : t1
+						notObject = foundX < aAxes.length ? b : a
 					}
 				}
 			}
@@ -458,7 +462,7 @@ function detectCollision(a, b) {
 			let mins = []
 			let currentMin = Infinity
 			for (let i = 0; i < notOwner.length; i++) 
-				let v = notOwner[i]
+				let v = notObject.convertToWorld(notOwner[i])
 				let dot = v.dot(globalAx)
 				if (dot < currentMin) {
 					currentMin = dot
@@ -550,6 +554,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
