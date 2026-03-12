@@ -124,6 +124,7 @@ class Rigidbody {
 
 		// Force storage
 		this.force = new Vector2()
+		this.torque = 0
 
 		// Shape properties
 		this.shape = shape
@@ -149,8 +150,12 @@ class Rigidbody {
 		let f_impulse = this.force.multiply(dt)
 		this.addImpulse(f_impulse)
 		this.pos = this.pos.add(this.vel.multiply(dt))
+
+		this.angVel += this.torque * dt / this.inertia
+		this.theta += this.angVel * dt
 		
 		this.force = new Vector2()
+		this.torque = 0
 	}
 
 	// Convert local vertex to world space
@@ -164,7 +169,7 @@ class Rigidbody {
 	// Adds an impulse to the object
 	addImpulse(impulse=null, point=null) {
 		if (this.mass === 0) return
-		let worldCentroid = this.convertToWorld(centroid)
+		let worldCentroid = this.convertToWorld(this.shape.centroid)
 		impulse = impulse || new Vector2()
 		point = point || worldCentroid
 
@@ -474,7 +479,7 @@ function detectCollision(a, b) {
 		if (globalAx != null) {
 			let mins = []
 			let currentMin = Infinity
-			for (let i = 0; i < notOwner.length; i++) 
+			for (let i = 0; i < notOwner.length; i++) {
 				let v = notObject.convertToWorld(notOwner[i])
 				let dot = v.dot(globalAx)
 				if (dot < currentMin) {
@@ -552,8 +557,7 @@ function resolveCollision(a, b, info) {
 		
 		// Finalize impulse magnitute calculation
 		impulse *= -(1 + restitution)
-		total_inv += (bpA.cross(info.normal) ** 2) / a.inertia
-		total_inv += (bpB.cross(info.normal) ** 2) / b.inertia
+		let this_inv = total_inv + (bpA.cross(info.normal) ** 2) / a.inertia + (bpB.cross(info.normal) ** 2) / b.inertia
 		impulse /= total_inv
 		impulse /= div
 		
@@ -586,6 +590,7 @@ function step(dt) {
 	}
 
 }
+
 
 
 
