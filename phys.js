@@ -135,7 +135,7 @@ class Rigidbody {
 		// Angular properties
 		this.theta = theta
 		this.angVel = angVel
-		this.inertia = this.inertia()
+		this.inertia = this.getInertia()
 
 		// Add to global rigidbody storage
 		rbs.push(this)
@@ -204,7 +204,7 @@ class Rigidbody {
 		}
 	}
 
-	inertia() {
+	getInertia() {
 		if (this.shape.type == 'Ball') {
 			return this.mass * this.shape.radius ** 2 / 2
 		}
@@ -557,7 +557,9 @@ function resolveCollision(a, b, info) {
 		
 		// Finalize impulse magnitute calculation
 		impulse *= -(1 + restitution)
-		let this_inv = total_inv + (bpA.cross(info.normal) ** 2) / a.inertia + (bpB.cross(info.normal) ** 2) / b.inertia
+		let this_inv = total_inv
+		if (a.inertia > 0): this_inv += (bpA.cross(info.normal) ** 2) / a.inertia
+		if (b.inertia > 0): this_inv += (bpB.cross(info.normal) ** 2) / b.inertia
 		impulse /= this_inv
 		impulse /= div
 		
@@ -590,3 +592,4 @@ function step(dt) {
 	}
 
 }
+
