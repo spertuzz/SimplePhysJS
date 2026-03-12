@@ -144,7 +144,7 @@ class Rigidbody {
 	// Update positions each frame
 	update(dt=0) {
 		if (this.mass === 0) return
-		let g_vector = new Vector2(0, -g)
+		let g_vector = new Vector2(0, -g * this.mass)
 		this.force = this.force.add(g_vector)
 		
 		let f_impulse = this.force.multiply(dt)
@@ -592,4 +592,5 @@ function step(dt) {
 	}
 
 }
+
 
