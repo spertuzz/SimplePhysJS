@@ -6,7 +6,7 @@ let lastTime = performance.now()
 function render() {
     // Calculate change in time
     let newTime = performance.now()
-    let dt = newTime - lastTime
+    let dt = (newTime - lastTime) / 1000
     lastTime = newTime
     
     // Prevent massive physics jumps
