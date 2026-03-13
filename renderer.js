@@ -1,6 +1,9 @@
 const canvas = document.getElementById('main')
 const ctx = canvas.getContext('2d')
 
+repeat = 100
+timescale = 4
+
 // Render frame
 let lastTime = performance.now()
 function render() {
