@@ -1,1 +1,1 @@
-# PhysJS
+# SimplePhysJS
