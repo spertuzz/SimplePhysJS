@@ -1,22 +1,8 @@
 // Global parameters
 var rbs = []
-var timescale = 1
 var g = 10
-
-// Templates
-let ball_template = {
-	type: 'Ball',
-	radius: 1
-}
-let polygon_template = {
-	type: 'Polygon',
-	vertices: [  // Relative to the center
-		new Vector2(1, 1),
-		new Vector2(1, -1),
-		new Vector2(-1, -1),
-		new Vector2(-1, 1)
-	]
-}
+var timescale = 1
+var repeat = 1
 
 // Utility Formulas
 
@@ -130,6 +116,12 @@ class Rigidbody {
 		this.shape = shape
 		this.bounce = bounce
 		this.shape.centroid = this.centroid()
+		if (this.shape.type == 'Polygon') {
+			for (let i = 0; i < this.shape.vertices.length; i++) {
+				let vertex = this.shape.vertices[i]
+				this.shape.vertices[i] = vertex.subtract(this.shape.centroid)
+			}
+		}
 		this.triangulate()
 
 		// Angular properties
@@ -150,8 +142,9 @@ class Rigidbody {
 		let f_impulse = this.force.multiply(dt)
 		this.addImpulse(f_impulse)
 		this.pos = this.pos.add(this.vel.multiply(dt))
-
-		this.angVel += this.torque * dt / this.inertia
+		this.angVel += this.torque * dt / this.inertia	
+		
+		this.pos = this.pos.add(this.vel.multiply(dt))
 		this.theta += this.angVel * dt
 		
 		this.force = new Vector2()
@@ -182,6 +175,18 @@ class Rigidbody {
 		this.angVel += v / this.inertia
 	}
 	
+	// Predict the difference in angular velocity
+	predictAngVel(impulse=null, point=null) {
+		if (this.mass === 0) return 0
+		let worldCentroid = this.convertToWorld(this.shape.centroid)
+		impulse = impulse || new Vector2()
+		point = point || worldCentroid
+		
+		let bp = point.subtract(worldCentroid)
+		let v = bp.cross(impulse)
+		return v / this.inertia
+	}
+	
 	// Calculates the center of mass (local)
 	centroid() {
 		if (this.shape.type == 'Ball') {
@@ -205,6 +210,7 @@ class Rigidbody {
 	}
 
 	getInertia() {
+		if (this.mass === 0) return 0
 		if (this.shape.type == 'Ball') {
 			return this.mass * this.shape.radius ** 2 / 2
 		}
@@ -341,7 +347,7 @@ class Rigidbody {
 function detectCollision(a, b) {
 	let a_ball = a.shape.type == 'Ball'
 	let b_ball = b.shape.type == 'Ball'
-	
+		
 	// Ball-on-ball collision
 	if (a_ball && b_ball) {
 		// Calculate sum of radiuses, being, the max distance where they don't touch
@@ -367,7 +373,7 @@ function detectCollision(a, b) {
 		let poly = a_ball ? b : a
 		let triangles = poly.shape.triangles
 		let globalAx = null
-		let globalMin = Infinity
+		let globalMax = -Infinity
 		for (let i = 0; i < triangles.length; i++) {
 			let triangle = triangles[i]
 			let axes = poly.getPerpAxes(triangle)
@@ -400,12 +406,12 @@ function detectCollision(a, b) {
 				}
 			}
 			if (bestAx != null) {
-				let center = b.pos.subtract(a.pos)
+				let center = b.convertToWorld(b.shape.centroid).subtract(a.convertToWorld(a.shape.centroid))
 				if (bestAx.dot(center) < 0) {
 					bestAx = bestAx.multiply(-1)
 				}
-				if (min < globalMin) {
-					globalMin = min
+				if (min > globalMax) {
+					globalMax = min
 					globalAx = bestAx
 				}
 			}
@@ -413,14 +419,14 @@ function detectCollision(a, b) {
 		if (globalAx != null) {
 			let point = null
 			if (a_ball) {
-				point = a.pos.add(globalAx.multiply(a.shape.radius - globalMin/2))
+				point = a.pos.add(globalAx.multiply(a.shape.radius - globalMax/2))
 			}
 			else {
-				point = b.pos.subtract(globalAx.multiply(b.shape.radius - globalMin / 2))
+				point = b.pos.subtract(globalAx.multiply(b.shape.radius - globalMax / 2))
 			}
 			return {
 				normal: globalAx,
-				depth: globalMin,
+				depth: globalMax,
 				point: [point]
 			}
 		}
@@ -432,13 +438,15 @@ function detectCollision(a, b) {
 		let a_triangles = a.shape.triangles
 		let b_triangles = b.shape.triangles
 		let globalAx = null
-		let globalMin = Infinity
+		let globalMax = -Infinity
 		let notOwner = null
 		let notObject = null
 		for (let i = 0; i < a_triangles.length; i++) {
 			for (let j = 0; j < b_triangles.length; j++) {
 				let min = Infinity
 				let foundX = 0
+				let bestT1 = null
+				let bestT2 = null
 				let bestAx = null
 				let axes = []
 				let aAxes = a.getPerpAxes(a_triangles[i])
@@ -460,17 +468,19 @@ function detectCollision(a, b) {
 						min = Math.abs(depth)
 						bestAx = ax
 						foundX = x
+						bestT1 = t1
+						bestT2 = t2
 					}
 				}
 				if (bestAx != null) {
-					let center = b.pos.subtract(a.pos)
+					let center = b.convertToWorld(b.shape.centroid).subtract(a.convertToWorld(a.shape.centroid))
 					if (bestAx.dot(center) < 0) {
 						bestAx = bestAx.multiply(-1)
 					}
-					if (min < globalMin) {
-						globalMin = min
+					if (min > globalMax) {
+						globalMax = min
 						globalAx = bestAx
-						notOwner = foundX < aAxes.length ? t2 : t1
+						notOwner = foundX < aAxes.length ? bestT2 : bestT1
 						notObject = foundX < aAxes.length ? b : a
 					}
 				}
@@ -479,20 +489,21 @@ function detectCollision(a, b) {
 		if (globalAx != null) {
 			let mins = []
 			let currentMin = Infinity
+			let slop = 0.001
 			for (let i = 0; i < notOwner.length; i++) {
 				let v = notObject.convertToWorld(notOwner[i])
 				let dot = v.dot(globalAx)
-				if (dot < currentMin) {
+				if (dot < currentMin - slop) {
 					currentMin = dot
 					mins = [v]
 				}
-				else if (dot == currentMin) {
+				else if (dot < currentMin + slop) {
 					mins.push(v)
 				}
 			}
 			return {
 				normal: globalAx,
-				depth: globalMin,
+				depth: globalMax,
 				point: mins
 			}
 		}
@@ -509,9 +520,12 @@ function correctCollision(a, b, info) {
 	let b_inv = b.mass === 0 ? 0 : 1 / b.mass
 	let total_inv = a_inv + b_inv
 	
+	// Return if two immovable masses
+	if (total_inv === 0) return
+	
 	// Parameters for collision correction
 	let slop = 0.01
-	let frac = 0.25
+	let frac = 0.2
 	
 	// Calculate vector to separate objects
 	let mag = frac * Math.max(info.depth - slop, 0) / total_inv
@@ -539,6 +553,12 @@ function resolveCollision(a, b, info) {
 	let aCenter = a.convertToWorld(a.shape.centroid)
 	let bCenter = b.convertToWorld(b.shape.centroid)
 	
+	// Store impulses to add them after
+	let aImpulsesLin = []
+	let bImpulsesLin = []
+	let aImpulsesAng = []
+	let bImpulsesAng = []
+	
 	// Do for each contact point equally
 	let div = info.point.length
 	for (let i = 0; i < div; i++) {
@@ -553,47 +573,85 @@ function resolveCollision(a, b, info) {
 		let impulse = vel_diff.dot(info.normal)
 		
 		// Ignore objects already moving away from each other
-		if (impulse > 0) return
+		if (impulse > 0) continue
 		
 		// Finalize impulse magnitute calculation
 		impulse *= -(1 + restitution)
 		let this_inv = total_inv
 		if (a.inertia > 0) this_inv += (bpA.cross(info.normal) ** 2) / a.inertia
 		if (b.inertia > 0) this_inv += (bpB.cross(info.normal) ** 2) / b.inertia
+		let linImpulse = impulse
 		impulse /= this_inv
+		linImpulse /= total_inv
 		impulse /= div
-		
+		linImpulse /= div
+				
 		// Add relevant impulses
-		a.addImpulse(info.normal.multiply(-impulse), point)
-		b.addImpulse(info.normal.multiply(impulse), point)
+		aImpulsesLin.push([info.normal.multiply(-linImpulse), null])
+		bImpulsesLin.push([info.normal.multiply(linImpulse), null])
+		aImpulsesAng.push([info.normal.multiply(-impulse), point])
+		bImpulsesAng.push([info.normal.multiply(impulse), point])
+	}
+	
+	// Apply impulses
+	if (div <= 1) {
+		for (let i = 0; i < aImpulsesAng.length; i++) {
+			a.addImpulse(aImpulsesAng[i][0], aImpulsesAng[i][1])
+			b.addImpulse(bImpulsesAng[i][0], bImpulsesAng[i][1])
+		}
+	}
+	else {
+		let slop = 0.001
+		let aSum = 0
+		let bSum = 0
+		for (let i = 0; i < aImpulsesAng.length; i++) {
+			aSum += a.predictAngVel(aImpulsesAng[i][0], aImpulsesAng[i][1])
+			bSum += b.predictAngVel(bImpulsesAng[i][0], bImpulsesAng[i][1])
+		}
+		if (Math.abs(aSum) < slop) {
+			for (let i = 0; i < aImpulsesLin.length; i++) {
+				a.addImpulse(aImpulsesLin[i][0], aImpulsesLin[i][1])
+			}
+		}
+		else {
+			for (let i = 0; i < aImpulsesAng.length; i++) {
+				a.addImpulse(aImpulsesAng[i][0], aImpulsesAng[i][1])
+			}
+		}
+		if (Math.abs(bSum) < slop) {
+			for (let i = 0; i < bImpulsesLin.length; i++) {
+				b.addImpulse(bImpulsesLin[i][0], bImpulsesLin[i][1])
+			}
+		}
+		else {
+			for (let i = 0; i < bImpulsesAng.length; i++) {
+				b.addImpulse(bImpulsesAng[i][0], bImpulsesAng[i][1])
+			}
+		}
 	}
 }
 
 // Calculate one physics step
 function step(dt) {
-	// Update phase
-	for (let i = 0; i < rbs.length; i++) {
-		rbs[i].update(dt * timescale)
-	}
-	
-	// Collision detection phase (loop through all pairs of rigidbodies)
-	for (let i = 0; i < rbs.length; i++) {
-		for (let j = i + 1; j < rbs.length; j++) {
-			let a = rbs[i]
-			let b = rbs[j]
-			let info = detectCollision(a, b)
-			
-			// If collision is valid
-			if (info) {
-				correctCollision(a, b, info)
-				resolveCollision(a, b, info)
+	dt = dt / repeat
+	for (let r = 0; r < repeat; r++) {
+		// Update phase
+		for (let i = 0; i < rbs.length; i++) {
+			rbs[i].update(dt * timescale)
+		}
+		// Collision detection phase (loop through all pairs of rigidbodies)
+		for (let i = 0; i < rbs.length; i++) {
+			for (let j = i + 1; j < rbs.length; j++) {
+				let a = rbs[i]
+				let b = rbs[j]
+				let info = detectCollision(a, b)
+				
+				// If collision is valid
+				if (info) {
+					correctCollision(a, b, info)
+					resolveCollision(a, b, info)
+				}
 			}
 		}
 	}
-
 }
-
-
-
-
-
