@@ -2,6 +2,10 @@
 
 Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics engine for web applications (built specifically on JS). I decided to do this mainly because I was bored and realized that I've been taking physics engines for granted my entire life (e.g., every game engine has them), so I decided to build one myself! I heavily recommend undertaking a project like this as it has been a massive learning experience for me. Watching the simulations is nice, too!
 
+<div align="center">
+  <img src="assets/showcase.gif" alt="SimplePhysJS Showcase" width="400">
+</div>
+
 ## Features
 ### Classes
 - **`Vector2` class:** A simple 2-dimensional vector with methods for arithmetic, dot and cross products, angle and magnitude, rotation, perpendiculars, and normalization.
