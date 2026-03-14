@@ -59,6 +59,16 @@ new Rigidbody(10, new Vector2(100, 200), 0, {
     ]
 }, 1, /*vel=new Vector2(100, 200)*/)
 
+new Rigidbody(10, new Vector2(100, 300), 0, {
+    type: 'Polygon',
+    vertices: [
+        new Vector2(0, 20),
+        new Vector2(20, -40),
+        new Vector2(0, -20),
+        new Vector2(-20, -40)
+    ]
+}, 1, /*vel=new Vector2(100, 200)*/)
+
 
 new Rigidbody(10, new Vector2(140, 100), 0, {
     type: 'Ball',
