@@ -3,7 +3,7 @@
 Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics engine for web applications (built specifically on JS). I decided to do this mainly because I was bored and realized that I've been taking physics engines for granted my entire life (e.g., every game engine has them), so I decided to build one myself! I heavily recommend undertaking a project like this as it has been a massive learning experience for me. Watching the simulations is nice, too!
 
 <div align="center">
-  <img src="assets/showcase.gif" alt="SimplePhysJS Showcase" width="400">
+  <img src="assets/showcase0.gif" alt="SimplePhysJS Showcase" width="400">
 </div>
 
 ## Features
@@ -63,3 +63,15 @@ new Rigidbody(
 ```
 
 Using this will spawn the rigidbodies once the simulation starts. They can also be spawned mid-execution.
+
+## Roadmap
+
+This engine certainly isn't done. There's still a lot to work on and many optimizations to make. Here are the currently planned features and improvements:
+- [ ] **AABB Bounding box collision detection:** A simple method to rule out impossible collisions in order to save computing power. Once implemented, it should drastically improve performance.
+- [ ] **Collision callback API and other tracking:** Ways to track collisions and other movement variables to increase utility.
+- [ ] **Distance-based constraints:** Springs, rods, that kind of stuff.
+- [ ] **General optimizations and numeric stability:** Always. Need. More. Speed.
+
+## Theory
+
+If you're as fascinated by math as I am, feel free to check out the theory that makes this project possible! I still haven't created it, but soon a `THEORY.md` or a document or something like that will be available with a detailed explanation of all the math used in this engine.
