@@ -57,7 +57,7 @@ new Rigidbody(10, new Vector2(100, 200), 0, {
         new Vector2(-20, -20),
         new Vector2(-20, 20)
     ]
-}, 1, /*vel=new Vector2(100, 200)*/)
+}, 1)
 
 new Rigidbody(10, new Vector2(100, 300), 0, {
     type: 'Polygon',
@@ -67,7 +67,7 @@ new Rigidbody(10, new Vector2(100, 300), 0, {
         new Vector2(0, -20),
         new Vector2(-20, -40)
     ]
-}, 1, /*vel=new Vector2(100, 200)*/)
+}, 1, vel=new Vector2(30, 30))
 
 
 new Rigidbody(10, new Vector2(140, 100), 0, {
