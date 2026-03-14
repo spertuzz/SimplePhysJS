@@ -36,12 +36,7 @@ This will be useful later to determine if the angle between two vectors in conca
 
 ## Rigidbodies
 
-Rigidbodies are the main characters of this physics engine. They are rigid physics bodies (as in, they cannot deform). To define these mathematically, we need to give them different properties.
-
-- **Position:** We can use a vector to determine a rigidbody's position.
-- **Velocity:** Velocity must also be a vector as the rigidbody can be moving at any speed in any direction.
-- **Angle:** I defined the angle as `theta` as our rigidbodies should ideally be able to rotate. This is not a vector, as in 2D objects can just pivot about a center in one direction.
-- **Angular Velocity:** Similarly to the angle, angular velocity does not need to be a vector.
+Rigidbodies are the main characters of this physics engine. They are rigid physics bodies (as in, they cannot deform). The properties we are going to want to simulate for a rigidbody are position, orientation (angle), velocity, and angular velocity, as these are the ones that describe its motion.
 
 To calculate an object's position, we must integrate its velocity. This is because $v = \frac{dx}{dt}$, since it is defined as the rate of change of displacement over time. This integration can be done in multiple ways:
 
@@ -49,10 +44,10 @@ To calculate an object's position, we must integrate its velocity. This is becau
 - **Verlet integration:** A form of integration useful for position calculations where the new position every frame is calculated based on the last position and change in velocity. By not storing velocity directly and only updating using changes in velocity, this is meant to reduce accumulation of error and therefore be much more stable than Euler integration.
 - **Backwards Euler:** A method that depends on previous values of velocity and position, and solves for the new ones using a system of linear equations. It is very stable but also computationally expensive.
 
-At this moment, SimplePhysJS uses **Euler integration**. It is not the best, but it is simple and quick to implement. A later goal is to upgrade to Verlet.
+At this moment, SimplePhysJS uses **semi-implicit Euler integration**. It is not the best, but it is simple and quick to implement. A later goal is to upgrade to Verlet.
 
 ### Impulses
 
 It would be very unstable to build a physics engine that runs entirely on continuous forces like real life. This is because real life 'runs' on continuous time while computer simulations run in discrete steps, and if we were to integrate forces in order to create movement, this would quickly accumulate numeric error and create a very unreliable result. Because of this, the SimplePhysJS (and many other physics engines) runs entirely on **impulses**.
 
-An **impulse**, in physics, if defined as a change in momentum (remember that momentum is the product of an object's mass and velocity). Thus, to apply a linear impulse of $J$, the change in velocity will be $\Delta v = \frac{\Delta p}{m} = \frac{J}{m}$, where $m$ is the object's mass and $\Delta p$ is the change in momentum. Doing this, we can create motion. This idea can also be applied if we want to simulate continuous forces, as is the case of gravity. Using the formula $J = Ft$ (or the definition of force which says that $F = \frac{\Delta p}{\Delta t} \implies \int F \ dt = J$), we can integrate force to express it as an impulse. So, using this, we can simulate any changes in an object's motion.
+An **impulse**, in physics, is defined as a change in momentum (remember that momentum is the product of an object's mass and velocity). Thus, to apply a linear impulse of $J$, the change in velocity will be $\Delta v = \frac{\Delta p}{m} = \frac{J}{m}$, where $m$ is the object's mass and $\Delta p$ is the change in momentum. Doing this, we can create motion. This idea can also be applied if we want to simulate continuous forces, as is the case of gravity. Using the formula $J = Ft$ (or the definition of force which says that $F = \frac{\Delta p}{\Delta t} \implies \int F \ dt = J$), we can integrate force to express it as an impulse. So, using this, we can simulate any changes in an object's motion.
