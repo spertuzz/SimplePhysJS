@@ -21,3 +21,45 @@ Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics eng
 - 'Tweakable' variables to change interactions and performance, like ways to change the timescale, gravity vector, and the amount of physics steps performed on each frame.
 - 'Headless' design: The actual engine is completely separate from anything else.
   - The project also features a `renderer` and `simulation` file to actually render and view different simulations.
+
+## Quick Start
+
+SimplePhysJS is a very easy engine to get started with. First, you'll need to have use the `phys.js` file, as it performs all of the calculations. Essentially, that is the actual engine. You can then use its classes and functions from another file (in the case of my demo, `simulation.js` and `canvas.js`) in order to set up your own simulation and render the results.
+
+To create a rigidbody, you must use the `Rigidbody` class:
+```javascript
+// This creates a ball
+new Rigidbody(
+    10, // Mass
+    new Vector2(10, 10),  // Position
+    0,  // Initial rotation about the centroid in radians
+    {  // Shape information
+        type: 'Ball',  // Required for it to be a ball
+        radius: 2
+    },
+    0.5  // Coefficient of restitution
+    // Optional initial velocity vector (Vector2)
+    // Optional initial angular velocity (number)
+)
+
+// This creates a polygon
+new Rigidbody(
+    10,  // Mass
+    new Vector2(0, 30),  // Position
+    1,  // Initial rotation about the centroid in radians
+    {  // Shape information
+        type: 'Polygon',  // Required for it to be a polygon
+        vertices: [  // Vertices in CLOCKWISE order, relative to pos
+            new Vector2(5, 5),  // Position of vertex 1
+            new Vector2(5, -5),  // Position of vertex 2, etc...
+            new Vector2(-5, -5),
+            new Vector2(-5, 5)
+        ]
+    },
+    1  // Coefficient of restitution
+    // Optional initial velocity vector (Vector2)
+    // Optional initial angular velocity (number)
+)
+```
+
+Using this will spawn the rigidbodies once the simulation starts. They can also be spawned mid-execution.
