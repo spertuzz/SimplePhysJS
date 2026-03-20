@@ -8,7 +8,7 @@ No worries. To start off, the fundamental idea for this entire engine is vectors
 
 A vector is an object in mathematics that has both direction and magnitude (size and direction, in simpler terms). They are often denoted as $\vec{v} = (x, y)$ in 2 dimensions, as a vector in 2D can point to any spot on the Cartesian plane. Because of this, a 2D vector is usually also visualized as an arrow pointing from $(0, 0)$.
 
-*From now on, I will refer to a 2D vector as just a 'vector'. Additionally, for the vector* $\vec{v}$*,* $v_{x}$ *and* $v_{y}$ *are its horizontal and vertical components.*
+*From now on, I will refer to a 2D vector as just a 'vector'. Additionally, for the vector* $\vec{v}$*,* $v_{x}$ *and* $v_{y}$ *are its horizontal and vertical components. This is important because some properties that are true of 2D vectors are not valid for higher-dimensional vectors. Specifically, the scalar expression for the cross product is only true in 2D.*
 
 If you're looking at physics engines, though, I think you're already familiar with vectors. Clearly, things like positions, velocities, impulses, displacement, etc. can all be expressed with a vector. The useful part here is what you can do with them:
 
