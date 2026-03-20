@@ -74,4 +74,4 @@ This engine certainly isn't done. There's still a lot to work on and many optimi
 
 ## Theory
 
-If you're as fascinated by math as I am, feel free to check out the theory that makes this project possible! I still haven't created it, but soon a `THEORY.md` or a document or something like that will be available with a detailed explanation of all the math used in this engine.
+If you're as fascinated by math as I am, feel free to check out the theory that makes this project possible! All of the math and physics used to create this project is explained in detail in <a href="THEORY.md">THEORY.md</a>. Enjoy!
