@@ -1,9 +1,3 @@
-// Global parameters
-var rbs = []
-var g = 10
-var timescale = 1
-var repeat = 1
-
 // Utility Formulas
 
 // Area of a polygon by applying the shoelace formula
@@ -99,6 +93,11 @@ class Vector2 {
 	}
 }
 
+// Global parameters
+var rbs = []
+var g = new Vector2(0, -10)
+var timescale = 1
+
 // Rigidbody class (physics object)
 class Rigidbody {
 	
@@ -128,24 +127,61 @@ class Rigidbody {
 		this.theta = theta
 		this.angVel = angVel
 		this.inertia = this.getInertia()
+		
+		// Internal sleep counter
+		this.sleep = 0
 
 		// Add to global rigidbody storage
 		rbs.push(this)
 	}
 	
+	asleep() {
+		return this.sleep > 10
+	}
+	
+	wake() {
+		this.sleep = 0
+	}
+	
 	// Update positions each frame
 	update(dt=0) {
-		if (this.mass === 0) return
-		let g_vector = new Vector2(0, -g * this.mass)
-		this.force = this.force.add(g_vector)
+		if (this.mass === 0 || this.asleep()) return
+		
+		let gMag = g.magnitude()
+		let vSleep = dt * gMag / 100
+		let aSleep = dt * 10
+		let damp = (1 - dt / 100)
+		
+		// Add gravity vector
+		this.force = this.force.add(g.multiply(this.mass))
 		
 		let f_impulse = this.force.multiply(dt)
 		this.addImpulse(f_impulse)
+		let velMag = this.vel.magnitude()
+		if (velMag < vSleep) {
+			this.vel = new Vector2()  // Clamp velocity
+		}
+		else if (velMag < vSleep * 10) {
+			this.vel = this.vel.multiply(damp)  // Damp velocity
+		}
 		this.pos = this.pos.add(this.vel.multiply(dt))
-		this.angVel += this.torque * dt / this.inertia	
 		
-		this.pos = this.pos.add(this.vel.multiply(dt))
+		this.angVel += this.torque * dt / this.inertia
+		let absAng = Math.abs(this.angVel)
+		if (absAng < aSleep) {
+			this.angVel = 0  // Clamp angular velocity
+		}
+		else if (absAng < aSleep * 10) {
+			this.angVel *= damp  // Damp angular velocity
+		}
 		this.theta += this.angVel * dt
+		
+		if (absAng < aSleep && velMag < vSleep) {
+			this.sleep += 1
+		}
+		else {
+			this.sleep = 0
+		}
 		
 		this.force = new Vector2()
 		this.torque = 0
@@ -157,6 +193,34 @@ class Rigidbody {
 		// Rotate point
 		let rotated = point.rotate(this.theta)
 		return this.pos.add(rotated)  // Return translated point
+	}
+	
+	// Gets the object's bounding box
+	getBoundingBox() {
+		// We want to find the extremes for the box
+		let minX = Infinity; let maxX = -Infinity;
+		let minY = Infinity; let maxY = -Infinity;
+		if (this.shape.type == 'Ball') {
+			let radius = this.shape.radius
+			// Extremes are tangent to the circle and perpendicular to the x and y axes
+			minX = this.pos.x - radius
+			maxX = this.pos.x + radius
+			minY = this.pos.y - radius
+			maxY = this.pos.y + radius
+		}
+		else if (this.shape.type == 'Polygon') {
+			let vertices = this.shape.vertices
+			// Take extreme values found across all vertices
+			for (let i = 0; i < vertices.length; i++) {
+				let v = this.convertToWorld(vertices[i])
+				minX = Math.min(v.x, minX)
+				maxX = Math.max(v.x, maxX)
+				minY = Math.min(v.y, minY)
+				maxY = Math.max(v.y, maxY)
+			}
+		}
+		// Return extremes
+		return [minX, maxX, minY, maxY]
 	}
 	
 	// Adds an impulse to the object
@@ -227,8 +291,7 @@ class Rigidbody {
 				let calc = t1.x ** 2 + t2.x ** 2 + t3.x ** 2 + t1.y ** 2 + t2.y ** 2 + t3.y ** 2 + (t1.x + t2.x + t3.x) ** 2 + (t1.y + t2.y + t3.y) ** 2
 				sumInertia += calc * m / 12
 			}
-			let squareDist = this.shape.centroid.magnitude() ** 2
-			return sumInertia - this.mass * squareDist
+			return sumInertia
 		}
 	}
 	
@@ -245,6 +308,7 @@ class Rigidbody {
 			// Ear finding phase
 			let len = purgatory.length;
 			let toRemove = null
+			let ears = []
 			for (let i = 0; i < len; i++) {
 				// Gather 3 consecutive vertices
 				let a = purgatory[(i - 1 + len) % len]
@@ -273,14 +337,33 @@ class Rigidbody {
 						}
 					}
 					if (ear) {
-						toRemove = i
-						triangles.push([a, b, c])
-						break
+						ears.push([[a, b, c], i])
 					}
 				}
 			}
-			if (toRemove != null) {
-				purgatory.splice(toRemove, 1)
+			let best = -Infinity
+			let selected = null
+			for (let i = 0; i < ears.length; i++) {
+				let ear = ears[i]
+				let tri = ear[0]
+				let p = 0
+				for (let x = 0; x < tri.length; x++) {
+					for (let y = x + 1; y < tri.length; y++) {
+						let v1 = tri[x]; let v2 = tri[y];
+						let diff = v2.subtract(v1)
+						p += diff.magnitude()
+					}
+				}
+				let a = polyArea(tri)
+				let frac = a / p ** 2
+				if (frac > best) {
+					best = frac
+					selected = ear
+				}
+			}
+			if (selected != null) {
+				triangles.push(selected[0])
+				purgatory.splice(selected[1], 1)
 			}
 			else {
 				purgatory = null
@@ -343,10 +426,30 @@ class Rigidbody {
 	
 }
 
+// Filters collisions based on whether or not they are possible to improve execution
+function filterCollision(a, b) {
+	// Exclude obvious false cases
+	if (a.mass === 0 && b.mass === 0) return false
+	if (a.asleep() && b.asleep()) return false
+	
+	let bA = a.getBoundingBox()
+	let bB = b.getBoundingBox()
+	
+	let xMinA = bA[0]; let xMaxA = bA[1]; let yMinA = bA[2]; let yMaxA = bA[3];
+	let xMinB = bB[0]; let xMaxB = bB[1]; let yMinB = bB[2]; let yMaxB = bB[3];
+	
+	let xCondit = (xMaxA > xMinB) && (xMaxB > xMinA)
+	let yCondit = (yMaxA > yMinB) && (yMaxB > yMinA)
+	
+	return xCondit && yCondit
+}
+
 // Detects collisions and returns the normal and overlap depth
 function detectCollision(a, b) {
 	let a_ball = a.shape.type == 'Ball'
 	let b_ball = b.shape.type == 'Ball'
+	
+	let maxDepth = 1
 		
 	// Ball-on-ball collision
 	if (a_ball && b_ball) {
@@ -361,7 +464,7 @@ function detectCollision(a, b) {
 		if (mag < combined_rad) {
 			return {
 				normal: norm,
-				depth: dep,
+				depth: Math.min(dep, maxDepth),
 				point: [a.pos.add(norm.multiply(a.shape.radius - dep/2))]
 			}
 		}
@@ -417,6 +520,7 @@ function detectCollision(a, b) {
 			}
 		}
 		if (globalAx != null) {
+			globalMax = Math.min(globalMax, maxDepth)
 			let point = null
 			if (a_ball) {
 				point = a.pos.add(globalAx.multiply(a.shape.radius - globalMax/2))
@@ -487,6 +591,7 @@ function detectCollision(a, b) {
 			}
 		}
 		if (globalAx != null) {
+			globalMax = Math.min(globalMax, maxDepth)
 			let mins = []
 			let currentMin = Infinity
 			let slop = 0.001
@@ -552,106 +657,94 @@ function resolveCollision(a, b, info) {
 	// Calculate centroids
 	let aCenter = a.convertToWorld(a.shape.centroid)
 	let bCenter = b.convertToWorld(b.shape.centroid)
-	
-	// Store impulses to add them after
-	let aImpulsesLin = []
-	let bImpulsesLin = []
-	let aImpulsesAng = []
-	let bImpulsesAng = []
-	
+
 	// Do for each contact point equally
-	let div = info.point.length
-	for (let i = 0; i < div; i++) {
+	let amt = info.point.length
+	let iters = amt < 2 ? 1 : 5
+	
+	// Calculate target velocities for each point
+	let targets = []
+	for (let i = 0; i < amt; i++) {
 		let point = info.point[i]
 		let bpA = point.subtract(aCenter)
 		let bpB = point.subtract(bCenter)
-	
+		
 		// Dot product to later scale for collision impulse
 		let a_vel = a.vel.add(bpA.scalarCross(a.angVel))
 		let b_vel = b.vel.add(bpB.scalarCross(b.angVel))
 		let vel_diff = b_vel.subtract(a_vel)
-		let impulse = vel_diff.dot(info.normal)
 		
-		// Ignore objects already moving away from each other
-		if (impulse > 0) continue
-		
-		// Finalize impulse magnitute calculation
-		impulse *= -(1 + restitution)
-		let this_inv = total_inv
-		if (a.inertia > 0) this_inv += (bpA.cross(info.normal) ** 2) / a.inertia
-		if (b.inertia > 0) this_inv += (bpB.cross(info.normal) ** 2) / b.inertia
-		let linImpulse = impulse
-		impulse /= this_inv
-		linImpulse /= total_inv
-		impulse /= div
-		linImpulse /= div
-				
-		// Add relevant impulses
-		aImpulsesLin.push([info.normal.multiply(-linImpulse), null])
-		bImpulsesLin.push([info.normal.multiply(linImpulse), null])
-		aImpulsesAng.push([info.normal.multiply(-impulse), point])
-		bImpulsesAng.push([info.normal.multiply(impulse), point])
+		targets.push(vel_diff.multiply(-restitution).dot(info.normal))
 	}
+	let acc = new Array(amt).fill(0)
 	
-	// Apply impulses
-	if (div <= 1) {
-		for (let i = 0; i < aImpulsesAng.length; i++) {
-			a.addImpulse(aImpulsesAng[i][0], aImpulsesAng[i][1])
-			b.addImpulse(bImpulsesAng[i][0], bImpulsesAng[i][1])
-		}
-	}
-	else {
-		let slop = 0.001
-		let aSum = 0
-		let bSum = 0
-		for (let i = 0; i < aImpulsesAng.length; i++) {
-			aSum += a.predictAngVel(aImpulsesAng[i][0], aImpulsesAng[i][1])
-			bSum += b.predictAngVel(bImpulsesAng[i][0], bImpulsesAng[i][1])
-		}
-		if (Math.abs(aSum) < slop) {
-			for (let i = 0; i < aImpulsesLin.length; i++) {
-				a.addImpulse(aImpulsesLin[i][0], aImpulsesLin[i][1])
-			}
-		}
-		else {
-			for (let i = 0; i < aImpulsesAng.length; i++) {
-				a.addImpulse(aImpulsesAng[i][0], aImpulsesAng[i][1])
-			}
-		}
-		if (Math.abs(bSum) < slop) {
-			for (let i = 0; i < bImpulsesLin.length; i++) {
-				b.addImpulse(bImpulsesLin[i][0], bImpulsesLin[i][1])
-			}
-		}
-		else {
-			for (let i = 0; i < bImpulsesAng.length; i++) {
-				b.addImpulse(bImpulsesAng[i][0], bImpulsesAng[i][1])
-			}
+	for (let iter = 0; iter < iters; iter++)
+	{
+		for (let i = 0; i < amt; i++) {
+			let point = info.point[i]
+			let bpA = point.subtract(aCenter)
+			let bpB = point.subtract(bCenter)
+		
+			// Dot product to later scale for collision impulse
+			let a_vel = a.vel.add(bpA.scalarCross(a.angVel))
+			let b_vel = b.vel.add(bpB.scalarCross(b.angVel))
+			let vel_diff = b_vel.subtract(a_vel)
+			
+			let impulse = vel_diff.dot(info.normal)
+			let target = targets[i]
+			
+			// Ignore objects already moving away from each other
+			if (impulse > target) continue
+			
+			let f = target - impulse
+			
+			// Finalize impulse magnitute calculation
+			let this_inv = total_inv
+			if (a.inertia > 0) this_inv += (bpA.cross(info.normal) ** 2) / a.inertia
+			if (b.inertia > 0) this_inv += (bpB.cross(info.normal) ** 2) / b.inertia
+			f /= this_inv
+			
+			let app = Math.max(0, acc[i] + f)
+			let imp = app - acc[i]
+			acc[i] = app
+					
+			// Add relevant impulses
+			a.addImpulse(info.normal.multiply(-imp), point)
+			b.addImpulse(info.normal.multiply(imp), point)
 		}
 	}
 }
 
 // Calculate one physics step
 function step(dt) {
-	dt = dt / repeat
-	for (let r = 0; r < repeat; r++) {
-		// Update phase
-		for (let i = 0; i < rbs.length; i++) {
-			rbs[i].update(dt * timescale)
-		}
-		// Collision detection phase (loop through all pairs of rigidbodies)
-		for (let i = 0; i < rbs.length; i++) {
-			for (let j = i + 1; j < rbs.length; j++) {
-				let a = rbs[i]
-				let b = rbs[j]
+	// Update phase
+	for (let i = 0; i < rbs.length; i++) {
+		rbs[i].update(dt * timescale)
+	}
+	// Collision detection phase (loop through all pairs of rigidbodies)
+	for (let i = 0; i < rbs.length; i++) {
+		for (let j = i + 1; j < rbs.length; j++) {
+			let a = rbs[i]
+			let b = rbs[j]
+			
+			// Determine if collision can even be considered
+			if (filterCollision(a, b)) {
 				let info = detectCollision(a, b)
-				
 				// If collision is valid
 				if (info) {
+					a.wake(); b.wake();
 					correctCollision(a, b, info)
 					resolveCollision(a, b, info)
 				}
 			}
 		}
+	}
+}
+
+// Calculate multiple physics steps (used for rendering)
+function multiStep(dt, count=1) {
+	let smallDt = dt / count
+	for (let i = 0; i < count; i++) {
+		step(smallDt)
 	}
 }
