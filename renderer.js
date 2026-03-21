@@ -2,7 +2,8 @@ const canvas = document.getElementById('main')
 const ctx = canvas.getContext('2d')
 
 repeat = 100
-timescale = 4
+timescale = 8
+drawTriangles = true
 
 // Render frame
 let lastTime = performance.now()
@@ -16,7 +17,7 @@ function render() {
     if (dt > 0.1) dt = 0.1
     
     // Trigger a physics step
-    step(dt)
+    multiStep(dt, repeat)
     
     // Set up canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -47,16 +48,33 @@ function render() {
         
         // Polygon case
         else if (rb.shape.type == 'Polygon') {
-            let vertices = rb.shape.vertices
-            // Begin at starting vertex
-            let start = rb.convertToWorld(vertices[0])
-            ctx.moveTo(start.x, start.y)
-            // Move to each vertex and draw a line
-            for (let j = 1; j < vertices.length; j++) {
-                let vertex = rb.convertToWorld(vertices[j])
-                ctx.lineTo(vertex.x, vertex.y)
-            }
-            ctx.lineTo(start.x, start.y)
+			if (drawTriangles) {
+				let triangles = rb.shape.triangles
+				// Draw each individual triangle
+				for (let t = 0; t < triangles.length; t++) {
+					let triangle = triangles[t]
+					// Begin at starting vertex
+					let start = rb.convertToWorld(triangle[0])
+					ctx.moveTo(start.x, start.y)
+					for (let j = 1; j < triangle.length; j++) {
+						let vertex = rb.convertToWorld(triangle[j])
+						ctx.lineTo(vertex.x, vertex.y)
+					}
+					ctx.lineTo(start.x, start.y)
+				}
+			}
+			else {
+				let vertices = rb.shape.vertices
+				// Begin at starting vertex
+				let start = rb.convertToWorld(vertices[0])
+				ctx.moveTo(start.x, start.y)
+				// Move to each vertex and draw a line
+				for (let j = 1; j < vertices.length; j++) {
+					let vertex = rb.convertToWorld(vertices[j])
+					ctx.lineTo(vertex.x, vertex.y)
+				}
+				ctx.lineTo(start.x, start.y)
+			}
         }
         
         // Close path and finalize shape
