@@ -95,21 +95,18 @@ class Vector2 {
 
 // Global parameters
 var rbs = []
+var consts = []
 var g = new Vector2(0, -10)
 var timescale = 1
 
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor(mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false} = {}) {
 		// Main physical properties
 		this.mass = mass
 		this.pos = pos || new Vector2()
 		this.vel = vel || new Vector2()
-
-		// Force storage
-		this.force = new Vector2()
-		this.torque = 0
 
 		// Shape properties
 		this.shape = shape
@@ -130,6 +127,12 @@ class Rigidbody {
 		
 		// Internal sleep counter
 		this.sleep = 0
+		this.ghost = ghost
+		
+		// Callbacks
+		this.onCollide = null
+		this.tags = {}
+		this.constraints = []
 
 		// Add to global rigidbody storage
 		rbs.push(this)
@@ -145,7 +148,7 @@ class Rigidbody {
 	
 	// Update positions each frame
 	update(dt=0) {
-		if (this.mass === 0 || this.asleep()) return
+		if (this.mass === 0 || this.asleep() || this.ghost) return
 		
 		let gMag = g.magnitude()
 		let vSleep = dt * gMag / 100
@@ -153,10 +156,8 @@ class Rigidbody {
 		let damp = (1 - dt / 100)
 		
 		// Add gravity vector
-		this.force = this.force.add(g.multiply(this.mass))
+		this.addForce(dt, g.multiply(this.mass))
 		
-		let f_impulse = this.force.multiply(dt)
-		this.addImpulse(f_impulse)
 		let velMag = this.vel.magnitude()
 		if (velMag < vSleep) {
 			this.vel = new Vector2()  // Clamp velocity
@@ -166,12 +167,11 @@ class Rigidbody {
 		}
 		this.pos = this.pos.add(this.vel.multiply(dt))
 		
-		this.angVel += this.torque * dt / this.inertia
 		let absAng = Math.abs(this.angVel)
-		if (absAng < aSleep) {
+		if (absAng < aSleep && this.constraints.length < 1) {
 			this.angVel = 0  // Clamp angular velocity
 		}
-		else if (absAng < aSleep * 10) {
+		else if (absAng < aSleep * 10 && this.constraints.length < 1) {
 			this.angVel *= damp  // Damp angular velocity
 		}
 		this.theta += this.angVel * dt
@@ -182,9 +182,6 @@ class Rigidbody {
 		else {
 			this.sleep = 0
 		}
-		
-		this.force = new Vector2()
-		this.torque = 0
 	}
 
 	// Convert local vertex to world space
@@ -193,6 +190,28 @@ class Rigidbody {
 		// Rotate point
 		let rotated = point.rotate(this.theta)
 		return this.pos.add(rotated)  // Return translated point
+	}
+	
+	// Adds an impulse to the object
+	addImpulse(impulse=null, point=null) {
+		if (this.mass === 0 || this.ghost) return
+		let worldCentroid = this.convertToWorld(this.shape.centroid)
+		impulse = impulse || new Vector2()
+		point = point || worldCentroid
+
+		// Linear velocity
+		this.vel = this.vel.add(impulse.divide(this.mass))
+
+		// Angular velocity
+		let bp = point.subtract(worldCentroid)
+		let v = bp.cross(impulse)
+		this.angVel += v / this.inertia
+	}
+	
+	// Adds a force to the object relative to time
+	addForce(dt, force=null, point=null) {
+		force = force || new Vector2()
+		this.addImpulse(force.multiply(dt), point)
 	}
 	
 	// Gets the object's bounding box
@@ -221,34 +240,6 @@ class Rigidbody {
 		}
 		// Return extremes
 		return [minX, maxX, minY, maxY]
-	}
-	
-	// Adds an impulse to the object
-	addImpulse(impulse=null, point=null) {
-		if (this.mass === 0) return
-		let worldCentroid = this.convertToWorld(this.shape.centroid)
-		impulse = impulse || new Vector2()
-		point = point || worldCentroid
-
-		// Linear velocity
-		this.vel = this.vel.add(impulse.divide(this.mass))
-
-		// Angular velocity
-		let bp = point.subtract(worldCentroid)
-		let v = bp.cross(impulse)
-		this.angVel += v / this.inertia
-	}
-	
-	// Predict the difference in angular velocity
-	predictAngVel(impulse=null, point=null) {
-		if (this.mass === 0) return 0
-		let worldCentroid = this.convertToWorld(this.shape.centroid)
-		impulse = impulse || new Vector2()
-		point = point || worldCentroid
-		
-		let bp = point.subtract(worldCentroid)
-		let v = bp.cross(impulse)
-		return v / this.inertia
 	}
 	
 	// Calculates the center of mass (local)
@@ -426,9 +417,105 @@ class Rigidbody {
 	
 }
 
+// Spring constraint
+class Spring {
+	
+	constructor({a=null, b=null, posA=null, posB=null, k=1, rest=1, width=5} = {}) {
+		// Define rigid bodies
+		this.a = a
+		this.b = b
+		this.pointA = new Vector2()
+		this.pointB = new Vector2()
+		posA = posA || new Vector2()
+		posB = posB || new Vector2()
+		
+		// Set rigid bodies and points where the springs are attached
+		if (!a) {
+			this.a = new Rigidbody({
+				mass: 0,
+				ghost: true,
+				pos: posA || new Vector2(),
+				shape: {
+					type: 'Ball',
+					radius: 1
+				}
+			})
+		}
+		else {
+			this.pointA = posA.subtract(a.shape.centroid)
+		}
+		if (!b) {
+			this.b = new Rigidbody({
+				mass: 0,
+				ghost: true,
+				pos: posB || new Vector2(),
+				shape: {
+					type: 'Ball',
+					radius: 1
+				}
+			})
+		}
+		else {
+			this.pointB = posB.subtract(b.shape.centroid)
+		}
+		
+		// Constraint application
+		this.a.constraints.push(this)
+		this.b.constraints.push(this)
+		
+		// Spring constant and rest length
+		this.k = k
+		this.width = width
+		this.rest = rest
+		this.type = 'Spring'
+		
+		// Add to global constraint storage
+		consts.push(this)
+	}
+	
+	// Applies spring forces onto both objects
+	update(dt) {
+		// Get world points for spring action
+		let worldA = this.a.convertToWorld(this.pointA)
+		let worldB = this.b.convertToWorld(this.pointB)
+		
+		// Calculate force using F = -kx
+		let diff = worldB.subtract(worldA)
+		let extension = diff.magnitude() - this.rest
+		let force = diff.normalize().multiply(-this.k * extension)
+		
+		// Apply forces in opposite directions
+		this.a.addForce(dt, force.multiply(-1), worldA)
+		this.b.addForce(dt, force, worldB)
+	}
+	
+	// Kills the constraint
+	detach() {
+		// Find indexes of this constraint in each rigidbody
+		let indexA = this.a.constraints.indexOf(this)
+		let indexB = this.b.constraints.indexOf(this)
+		
+		// Remove constraint from said constraint lists
+		if (indexA > -1) {
+			this.a.constraints.splice(indexA, 1)
+		}
+		if (indexB > -1) {
+			this.b.constraints.splice(indexB, 1)
+		}
+		
+		// Remove constraint from the general list
+		let indexC = consts.indexOf(this)
+		if (indexC > -1) {
+			consts.splice(indexC, 1)
+		}
+	}
+	
+}
+
 // Filters collisions based on whether or not they are possible to improve execution
 function filterCollision(a, b) {
 	// Exclude obvious false cases
+	if (a.ghost || b.ghost) return false
 	let aStatic = a.mass === 0; let bStatic = b.mass === 0;
 	let aSleep = a.asleep(); let bSleep = b.asleep();
 	if (aStatic && bStatic) return false
@@ -666,6 +753,13 @@ function resolveCollision(a, b, info) {
 	let amt = info.point.length
 	let iters = amt < 2 ? 1 : 5
 	
+	// Callback packages
+	let aPack = {}; let bPack = {};
+	aPack.normal = info.normal; bPack.normal = info.normal;
+	aPack.points = info.point; bPack.points = info.point;
+	aPack.vel0 = a.vel; bPack.vel0 = b.vel;
+	aPack.angVel0 = a.angVel; bPack.angVel0 = b.angVel;
+	
 	// Calculate target velocities for each point
 	let targets = []
 	for (let i = 0; i < amt; i++) {
@@ -717,6 +811,19 @@ function resolveCollision(a, b, info) {
 			b.addImpulse(info.normal.multiply(imp), point)
 		}
 	}
+	
+	// Log features for callback package
+	aPack.vel1 = a.vel; bPack.vel1 = b.vel;
+	aPack.angVel1 = a.angVel; bPack.angVel1 = b.angVel;
+	let totalImpulse = 0
+	for (let i = 0; i < acc.length; i++) {
+		totalImpulse += acc[i]
+	}
+	aPack.impulse = totalImpulse; bPack.impulse = totalImpulse;
+	
+	// Send return packages for callbacks
+	if (a.onCollide) a.onCollide(b, aPack)
+	if (b.onCollide) b.onCollide(a, bPack)
 }
 
 // Calculate one physics step
@@ -742,6 +849,11 @@ function step(dt) {
 				}
 			}
 		}
+	}
+	
+	// Update constraints
+	for (let i = 0; i < consts.length; i++) {
+		consts[i].update(dt * timescale)
 	}
 }
 
