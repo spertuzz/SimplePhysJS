@@ -26,7 +26,8 @@ function render() {
     ctx.scale(1, -1);
     
     // Line settings
-    ctx.strokeStyle = '#ffffff'; // Black
+	let defColor = '#ffffff'
+    ctx.strokeStyle = defColor; // Black
     ctx.lineWidth = 2;
     
     // Draw each rigidbody
@@ -35,6 +36,14 @@ function render() {
     
         // Start pen
         ctx.beginPath()
+		
+		// Collision callback example: turn objects red when colliding
+		if ('red' in rb.tags) {
+			if (rb.tags.red > 0) {
+				ctx.strokeStyle = '#ff0000'
+				rb.tags.red--
+			}
+		}
     
         // Ball case
         if (rb.shape.type == 'Ball') {
@@ -60,7 +69,7 @@ function render() {
 						let vertex = rb.convertToWorld(triangle[j])
 						ctx.lineTo(vertex.x, vertex.y)
 					}
-					ctx.lineTo(start.x, start.y)
+					ctx.closePath()
 				}
 			}
 			else {
@@ -73,14 +82,61 @@ function render() {
 					let vertex = rb.convertToWorld(vertices[j])
 					ctx.lineTo(vertex.x, vertex.y)
 				}
-				ctx.lineTo(start.x, start.y)
+				ctx.closePath()
 			}
         }
         
         // Close path and finalize shape
-        ctx.closePath()
         ctx.stroke()
+		ctx.strokeStyle = defColor;
     }
+	
+	for (let i = 0; i < consts.length; i++) {
+		let c = consts[i]
+		
+		// Start pen
+		ctx.beginPath()
+		
+		// Spring case
+		if (c.type == 'Spring') {
+			// Define points
+			let v0 = c.a.convertToWorld(c.pointA)
+			let v1 = c.b.convertToWorld(c.pointB)
+			
+			// Calculate difference and distance for later calculations
+			let dx = v1.x - v0.x
+			let dy = v1.y - v0.y
+			let distance = v1.subtract(v0).magnitude()
+			
+			// Define frequency and amplitude for the sine wave
+			let freq = Math.PI * 2 * c.k / distance
+			let amp = c.width
+			
+			// Create unit vectors for drawing the curve
+			let ux = dx / distance
+			let uy = dy / distance
+			let vx = -uy
+			let vy = ux
+			
+			ctx.moveTo(v0.x, v0.y)
+			// Iterate through all following pixels and draw sine wave
+			for (let j = 0; j <= distance; j++) {
+				// Current position on straight line distance
+				let cX = v0.x + j * ux
+				let cY = v0.y + j * uy
+				
+				// Create offset from straight line point
+				let offset = Math.sin(j * freq) * amp
+				
+				// Draw line to offset points
+				ctx.lineTo(cX + offset * vx, cY + offset * vy)
+			}
+		}
+		
+		// Close path and finalize line
+        ctx.stroke()
+		ctx.strokeStyle = defColor;
+	}
     
     // Prepare for next frame
     ctx.restore()
