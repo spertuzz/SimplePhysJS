@@ -429,8 +429,12 @@ class Rigidbody {
 // Filters collisions based on whether or not they are possible to improve execution
 function filterCollision(a, b) {
 	// Exclude obvious false cases
-	if (a.mass === 0 && b.mass === 0) return false
-	if (a.asleep() && b.asleep()) return false
+	let aStatic = a.mass === 0; let bStatic = b.mass === 0;
+	let aSleep = a.asleep(); let bSleep = b.asleep();
+	if (aStatic && bStatic) return false
+	if (aSleep && bSleep) return false
+	if (aSleep && bStatic) return false
+	if (aStatic && bSleep) return false
 	
 	let bA = a.getBoundingBox()
 	let bB = b.getBoundingBox()
