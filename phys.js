@@ -426,8 +426,6 @@ class Spring {
 		this.b = b
 		this.pointA = new Vector2()
 		this.pointB = new Vector2()
-		posA = posA || new Vector2()
-		posB = posB || new Vector2()
 		
 		// Set rigid bodies and points where the springs are attached
 		if (!a) {
@@ -442,7 +440,9 @@ class Spring {
 			})
 		}
 		else {
-			this.pointA = posA.subtract(a.shape.centroid)
+			if (posA) {
+				this.pointA = posA.subtract(a.shape.centroid)
+			}
 		}
 		if (!b) {
 			this.b = new Rigidbody({
@@ -456,7 +456,9 @@ class Spring {
 			})
 		}
 		else {
-			this.pointB = posB.subtract(b.shape.centroid)
+			if (posB) {
+				this.pointB = posB.subtract(b.shape.centroid)
+			}
 		}
 		
 		// Constraint application
