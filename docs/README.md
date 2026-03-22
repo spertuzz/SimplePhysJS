@@ -67,10 +67,10 @@ Using this will spawn the rigidbodies once the simulation starts. They can also 
 ## Roadmap
 
 This engine certainly isn't done. There's still a lot to work on and many optimizations to make. Here are the currently planned features and improvements:
-- [ ] **AABB Bounding box collision detection:** A simple method to rule out impossible collisions in order to save computing power. Once implemented, it should drastically improve performance.
+- [x] **AABB Bounding box collision detection:** A simple method to rule out impossible collisions in order to save computing power. Once implemented, it should drastically improve performance.
+- [x] **General optimizations and numeric stability:** Always. Need. More. Speed.
 - [ ] **Collision callback API and other tracking:** Ways to track collisions and other movement variables to increase utility.
 - [ ] **Distance-based constraints:** Springs, rods, that kind of stuff.
-- [ ] **General optimizations and numeric stability:** Always. Need. More. Speed.
 
 ## Theory
 
