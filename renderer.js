@@ -46,13 +46,16 @@ function render() {
 		}
     
         // Ball case
-        if (rb.shape.type == 'Ball') {
+        if (rb.shape.type == 'Ball' || rb.ghost) {
+			let rad = rb.ghost ? 1 : rb.shape.radius
             // Draw circular arc
-            ctx.arc(rb.pos.x, rb.pos.y, rb.shape.radius, 0, Math.PI * 2)
+            ctx.arc(rb.pos.x, rb.pos.y, rad, 0, Math.PI * 2)
             // Draw line to view rotation
-            ctx.moveTo(rb.pos.x, rb.pos.y)
-            let spoke = rb.pos.add(new Vector2(rb.shape.radius, 0).rotate(rb.theta))
-            ctx.lineTo(spoke.x, spoke.y)
+			if (!rb.ghost) {
+				ctx.moveTo(rb.pos.x, rb.pos.y)
+				let spoke = rb.pos.add(new Vector2(rad, 0).rotate(rb.theta))
+				ctx.lineTo(spoke.x, spoke.y)
+			}
         }
         
         // Polygon case
