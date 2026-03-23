@@ -116,6 +116,22 @@ You might've noticed, though, that some previously mentioned collisions may have
 
 ---
 
+## Constraints
+
+Right now, objects can move well on their own. We're missing something big though: constraints that limit or modify their movement! Things like ropes, rods, springs, and hinges that attach to objects and change how they move in some way. Don't worry: these actually aren't too complicated. They're not super simple, but we can take advantage of everything we've already built to make the job a lot easier.
+
+### Springs
+
+Springs attract or repel objects based on how far they are extended or contracted from their resting length. They behave in a very simple way: according to Hooke's law:
+
+$$F = -kx$$
+
+Where $F$ is the force applied by the spring on the object, $k$ is the "spring constant" which dictates how strong the spring is, and $x$ is the amount the spring has been extended from its resting position (a negative length implies a contraction). That's it. Even the direction of the force is straightforward; it's just the vector between the two points the spring is attached to, applied forwards or backwards based on which point it is.
+
+So, in reality, defining a spring is quite simple. Simply define the two points that the spring is attached to, and apply the resulting forces on each point every physics step using our already existing integration and impulse-applying methods. That's really it, no joke. It's that easy!
+
+---
+
 ## Stability
 
 Well, that's *technically* it, but we're not actually done. This would all work perfectly if we lived in a perfect world, but we clearly don't! Specifically, computers make mistakes all the time and aren't particularly known for making precise calculations. For example, a calculation like $5 \div 2$ could result in $2.499999999$ instead of the correct answer, $2.5$, simply due to tiny errors. These errors constantly build up in our physics engine, causing massive problems in the long term. Resting objects could begin to shake due to imprecise velocity calculations, perfectly elastic objects could slowly lose energy, and many more things could happen. This is why it is important to implement solutions to improve numeric stability, which is, fittingly, how stable our calculations are. Here are some of my current fixes:
