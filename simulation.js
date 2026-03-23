@@ -100,7 +100,7 @@ new Rigidbody({
 	vel: new Vector2(20, 20)
 })
 
-new Rigidbody({
+let s1 = new Rigidbody({
 	mass: 10,
 	pos: new Vector2(-120, 150),
 	theta: 20,
@@ -115,9 +115,10 @@ new Rigidbody({
 	bounce: 1
 })
 
-let springA = new Rigidbody({
+let s0 = new Rigidbody({
 	mass: 10,
 	pos: new Vector2(100, 300),
+	theta: 1,
 	shape: {
 		type: 'Polygon',
 		vertices: [
@@ -132,7 +133,7 @@ let springA = new Rigidbody({
 })
 
 
-let springB = new Rigidbody({
+let s2 = new Rigidbody({
 	mass: 10,
 	pos: new Vector2(140, 100),
 	shape: {
@@ -144,9 +145,17 @@ let springB = new Rigidbody({
 })
 
 new Spring({
-	a: springA,
-	b: springB,
-	rest: 30,
+	a: s0,
+	posB: new Vector2(0, 430),
+	rest: 60,
+	k: 5
+})
+
+new Spring({
+	a: s1,
+	b: s2,
+	posA: new Vector2(20, 20),
+	rest: 40,
 	k: 5
 })
 
