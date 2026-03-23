@@ -66,11 +66,11 @@ class Vector2 {
 	}
 
 	rotate(alpha) {
-		let theta = this.theta()
-		let beta = alpha + theta
-		let mag = this.magnitude()
-		let x = mag * Math.cos(beta)
-		let y = mag * Math.sin(beta)
+		// Multiply by standard 2D rotation matrix
+		let sin = Math.sin(alpha)
+		let cos = Math.cos(alpha)
+		let x = this.x * cos - this.y * sin
+		let y = this.x * sin + this.y * cos
 		return new Vector2(x, y)
 	}
 	
@@ -186,7 +186,7 @@ class Rigidbody {
 
 	// Convert local vertex to world space
 	convertToWorld(point=null) {
-		if (point == null) return
+		point = point || new Vector2()
 		// Rotate point
 		let rotated = point.rotate(this.theta)
 		return this.pos.add(rotated)  // Return translated point
@@ -195,7 +195,7 @@ class Rigidbody {
 	// Adds an impulse to the object
 	addImpulse(impulse=null, point=null) {
 		if (this.mass === 0 || this.ghost) return
-		let worldCentroid = this.convertToWorld(this.shape.centroid)
+		let worldCentroid = this.convertToWorld()
 		impulse = impulse || new Vector2()
 		point = point || worldCentroid
 
@@ -424,41 +424,39 @@ class Spring {
 		// Define rigid bodies
 		this.a = a
 		this.b = b
-		this.pointA = new Vector2()
-		this.pointB = new Vector2()
+		this.pointA = posA || new Vector2()
+		this.pointB = posB || new Vector2()
 		
 		// Set rigid bodies and points where the springs are attached
 		if (!a) {
 			this.a = new Rigidbody({
 				mass: 0,
 				ghost: true,
-				pos: posA || new Vector2(),
+				pos: this.pointA,
 				shape: {
 					type: 'Ball',
 					radius: 1
 				}
 			})
+			this.pointA = new Vector2()
 		}
 		else {
-			if (posA) {
-				this.pointA = posA.subtract(a.shape.centroid)
-			}
+			if (posA) this.pointA = this.pointA.subtract(a.shape.centroid)
 		}
 		if (!b) {
 			this.b = new Rigidbody({
 				mass: 0,
 				ghost: true,
-				pos: posB || new Vector2(),
+				pos: this.pointB,
 				shape: {
 					type: 'Ball',
 					radius: 1
 				}
 			})
+			this.pointB = new Vector2()
 		}
 		else {
-			if (posB) {
-				this.pointB = posB.subtract(b.shape.centroid)
-			}
+			if (posB) this.pointB = this.pointB.subtract(b.shape.centroid)
 		}
 		
 		// Constraint application
@@ -602,7 +600,7 @@ function detectCollision(a, b) {
 				}
 			}
 			if (bestAx != null) {
-				let center = b.convertToWorld(b.shape.centroid).subtract(a.convertToWorld(a.shape.centroid))
+				let center = b.convertToWorld().subtract(a.convertToWorld())
 				if (bestAx.dot(center) < 0) {
 					bestAx = bestAx.multiply(-1)
 				}
@@ -670,7 +668,7 @@ function detectCollision(a, b) {
 					}
 				}
 				if (bestAx != null) {
-					let center = b.convertToWorld(b.shape.centroid).subtract(a.convertToWorld(a.shape.centroid))
+					let center = b.convertToWorld().subtract(a.convertToWorld())
 					if (bestAx.dot(center) < 0) {
 						bestAx = bestAx.multiply(-1)
 					}
@@ -748,8 +746,8 @@ function resolveCollision(a, b, info) {
 	let restitution = a.bounce * b.bounce
 
 	// Calculate centroids
-	let aCenter = a.convertToWorld(a.shape.centroid)
-	let bCenter = b.convertToWorld(b.shape.centroid)
+	let aCenter = a.convertToWorld()
+	let bCenter = b.convertToWorld()
 
 	// Do for each contact point equally
 	let amt = info.point.length
