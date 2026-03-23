@@ -15,10 +15,15 @@ Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics eng
   - Two types of rigidbodies: `Ball` and `Polygon`.
     - Triangulation by ear-clipping is used to support concave polygons as well as convex ones.
   - Massless rigidbodies are also supported, and these are used as static objects.
+- **`Spring` class:** A distance-based spring constraint.
+  - Applies forces (both linear and angular components).
+  - Placed between two ends which can be rigidbodies or static points.
+  - Modifiable resting length and spring constant.
 ### Simulation
 - Collisions between all types of rigidbodies with ranging elasticity (restitution).
   - Collisions are detected using the SAT (Separating Axis Theorem)
-- 'Tweakable' variables to change interactions and performance, like ways to change the timescale, gravity vector, and the amount of physics steps performed on each frame.
+- Some distance-based constraints like springs.
+- 'Tweakable' variables to change interactions and performance, like ways to change the timescale and gravity vector.
 - 'Headless' design: The actual engine is completely separate from anything else.
   - The project also features a `renderer` and `simulation` file to actually render and view different simulations.
 
@@ -29,25 +34,23 @@ SimplePhysJS is a very easy engine to get started with. First, you'll need to ha
 To create a rigidbody, you must use the `Rigidbody` class:
 ```javascript
 // This creates a ball
-new Rigidbody(
-    10, // Mass
-    new Vector2(10, 10),  // Position
-    0,  // Initial rotation about the centroid in radians
-    {  // Shape information
+new Rigidbody({
+    mass: 10, // Mass
+    pos: new Vector2(10, 10),  // Position
+    theta: 0,  // Initial rotation about the centroid in radians
+    shape: {  // Shape information
         type: 'Ball',  // Required for it to be a ball
         radius: 2
     },
-    0.5  // Coefficient of restitution
-    // Optional initial velocity vector (Vector2)
-    // Optional initial angular velocity (number)
-)
+    bounce: 0.5  // Coefficient of restitution
+})
 
 // This creates a polygon
-new Rigidbody(
-    10,  // Mass
-    new Vector2(0, 30),  // Position
-    1,  // Initial rotation about the centroid in radians
-    {  // Shape information
+new Rigidbody({
+    mass: 10,  // Mass
+    pos: new Vector2(0, 30),  // Position
+    theta: 1,  // Initial rotation about the centroid in radians
+    shape: {  // Shape information
         type: 'Polygon',  // Required for it to be a polygon
         vertices: [  // Vertices in CLOCKWISE order, relative to pos
             new Vector2(5, 5),  // Position of vertex 1
@@ -56,10 +59,10 @@ new Rigidbody(
             new Vector2(-5, 5)
         ]
     },
-    1  // Coefficient of restitution
-    // Optional initial velocity vector (Vector2)
-    // Optional initial angular velocity (number)
-)
+    bounce: 1  // Coefficient of restitution
+})
+
+// More optional parameters are available.
 ```
 
 Using this will spawn the rigidbodies once the simulation starts. They can also be spawned mid-execution.
@@ -69,8 +72,12 @@ Using this will spawn the rigidbodies once the simulation starts. They can also 
 This engine certainly isn't done. There's still a lot to work on and many optimizations to make. Here are the currently planned features and improvements:
 - [x] **AABB Bounding box collision detection:** A simple method to rule out impossible collisions in order to save computing power. Once implemented, it should drastically improve performance.
 - [x] **General optimizations and numeric stability:** Always. Need. More. Speed.
-- [ ] **Collision callback API and other tracking:** Ways to track collisions and other movement variables to increase utility.
+- [x] **Collision callback API and other tracking:** Ways to track collisions and other movement variables to increase utility.
 - [ ] **Distance-based constraints:** Springs, rods, that kind of stuff.
+    - [x] Springs
+    - [ ] Rods
+    - [ ] Ropes
+    - [ ] Hinges
 
 ## Theory
 
