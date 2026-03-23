@@ -22,6 +22,7 @@ Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics eng
 ### Simulation
 - Collisions between all types of rigidbodies with ranging elasticity (restitution).
   - Collisions are detected using the SAT (Separating Axis Theorem)
+- Customizable callbacks for collisions (including pre-packaged collision info).
 - Some distance-based constraints like springs.
 - 'Tweakable' variables to change interactions and performance, like ways to change the timescale and gravity vector.
 - 'Headless' design: The actual engine is completely separate from anything else.
