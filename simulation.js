@@ -1,6 +1,6 @@
 // Physics engine
 var phys = new SimplePhysJS({
-	timescale: 100
+	timescale: 8
 })
 
 // Immovable walls
