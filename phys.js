@@ -136,11 +136,27 @@ class Rigidbody {
 		// Add to global rigidbody storage
 		parent.rbs.push(this)
 	}
-	
+
+	// Remove a rigidbody from the engine
+	destroy() {
+		// Detach constraints attached to the rigidbody
+		for (let i = 0; i < this.constraints.length; i++) {
+			this.constraints[i].detach()
+		}
+		
+		// Remove rb from the list
+		let index = this.parent.rbs.indexOf(this)
+		if (index > -1) {
+			this.parent.rbs.splice(index, 1)
+		}
+	}
+
+	// Check if a rigidbody is asleep
 	asleep() {
 		return this.sleep > 10
 	}
-	
+
+	// Wake up the rigidbody from sleep
 	wake() {
 		this.sleep = 0
 	}
