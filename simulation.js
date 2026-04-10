@@ -1,4 +1,5 @@
-// Rigidbodies
+// Physics engine
+phys = SimplePhysJS()
 
 // Immovable walls
 
@@ -14,7 +15,8 @@ new Rigidbody({
 			new Vector2(-300, 10)
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 new Rigidbody({
@@ -29,7 +31,8 @@ new Rigidbody({
 			new Vector2(-300, 10)
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 new Rigidbody({
@@ -44,7 +47,8 @@ new Rigidbody({
 			new Vector2(-10, 205)
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 new Rigidbody({
@@ -59,7 +63,8 @@ new Rigidbody({
 			new Vector2(-10, 205)
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 // Moving objects
@@ -71,7 +76,8 @@ new Rigidbody({
 		type: 'Ball',
 		radius: 10
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 new Rigidbody({
@@ -86,7 +92,8 @@ new Rigidbody({
 			new Vector2(-20, 20)
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 new Rigidbody({
@@ -97,7 +104,8 @@ new Rigidbody({
 		radius: 20
 	},
 	bounce: 1,
-	vel: new Vector2(20, 20)
+	vel: new Vector2(20, 20),
+	parent: phys
 })
 
 let s1 = new Rigidbody({
@@ -112,7 +120,8 @@ let s1 = new Rigidbody({
 			new Vector2(-20, -20),
 		]
 	},
-	bounce: 1
+	bounce: 1,
+	parent: phys
 })
 
 let s0 = new Rigidbody({
@@ -129,7 +138,8 @@ let s0 = new Rigidbody({
 		]
 	},
 	bounce: 1,
-	vel: new Vector2(30, 30)
+	vel: new Vector2(30, 30),
+	parent: phys
 })
 
 
@@ -141,14 +151,16 @@ let s2 = new Rigidbody({
 		radius: 10
 	},
 	bounce: 1,
-	vel: new Vector2(10, 10)
+	vel: new Vector2(10, 10),
+	parent: phys
 })
 
 new Spring({
 	a: s0,
 	posB: new Vector2(0, 430),
 	rest: 60,
-	k: 5
+	k: 5,
+	parent: phys
 })
 
 new Spring({
@@ -156,12 +168,13 @@ new Spring({
 	b: s2,
 	posA: new Vector2(20, 20),
 	rest: 40,
-	k: 5
+	k: 5,
+	parent: phys
 })
 
 // Collision callback example: timer to turn objects red on collision
-for (let i = 0; i < rbs.length; i++) {
-	let rb = rbs[i]
+for (let i = 0; i < phys.rbs.length; i++) {
+	let rb = phys.rbs[i]
 	rb.tags.red = 0
 	rb.onCollide = (other, pack) => {
 		rb.tags.red = 5
