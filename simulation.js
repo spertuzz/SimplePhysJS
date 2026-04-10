@@ -1,5 +1,5 @@
 // Physics engine
-phys = SimplePhysJS()
+phys = new SimplePhysJS()
 
 // Immovable walls
 
