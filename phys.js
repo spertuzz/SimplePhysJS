@@ -862,6 +862,8 @@ class SimplePhysJS {
 		// Object storage
 		this.rbs = []
 		this.consts = []
+
+		console.log(this.g)
 	}
 
 	// Executes one physics step
