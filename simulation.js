@@ -1,4 +1,4 @@
-// Physics engine
+// Physics engine object
 var phys = new SimplePhysJS({
 	timescale: 8
 })
