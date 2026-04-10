@@ -93,16 +93,10 @@ class Vector2 {
 	}
 }
 
-// Global parameters
-var rbs = []
-var consts = []
-var g = new Vector2(0, -10)
-var timescale = 1
-
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false} = {}) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false, parent=null} = {}) {
 		// Main physical properties
 		this.mass = mass
 		this.pos = pos || new Vector2()
@@ -135,7 +129,7 @@ class Rigidbody {
 		this.constraints = []
 
 		// Add to global rigidbody storage
-		rbs.push(this)
+		parent.rbs.push(this)
 	}
 	
 	asleep() {
@@ -420,7 +414,7 @@ class Rigidbody {
 // Spring constraint
 class Spring {
 	
-	constructor({a=null, b=null, posA=null, posB=null, k=1, rest=1, width=5} = {}) {
+	constructor({a=null, b=null, posA=null, posB=null, k=1, rest=1, width=5, parent=null} = {}) {
 		// Define rigid bodies
 		this.a = a
 		this.b = b
@@ -470,7 +464,7 @@ class Spring {
 		this.type = 'Spring'
 		
 		// Add to global constraint storage
-		consts.push(this)
+		parent.consts.push(this)
 	}
 	
 	// Applies spring forces onto both objects
@@ -504,9 +498,9 @@ class Spring {
 		}
 		
 		// Remove constraint from the general list
-		let indexC = consts.indexOf(this)
+		let indexC = this.consts.indexOf(this)
 		if (indexC > -1) {
-			consts.splice(indexC, 1)
+			this.consts.splice(indexC, 1)
 		}
 	}
 	
@@ -826,41 +820,60 @@ function resolveCollision(a, b, info) {
 	if (b.onCollide) b.onCollide(a, bPack)
 }
 
-// Calculate one physics step
-function step(dt) {
-	// Update phase
-	for (let i = 0; i < rbs.length; i++) {
-		rbs[i].update(dt * timescale)
+// Actual physics objects
+class SimplePhysJS {
+
+	constructor({timescale=1, g=null, collide=true} = {}) {
+		// Important global parameters
+		this.timescale = timescale
+		this.g = g || new Vector2(0, -10)
+		this.collide = collide
+		
+		// Object storage
+		this.rbs = []
+		this.consts = []
 	}
-	// Collision detection phase (loop through all pairs of rigidbodies)
-	for (let i = 0; i < rbs.length; i++) {
-		for (let j = i + 1; j < rbs.length; j++) {
-			let a = rbs[i]
-			let b = rbs[j]
-			
-			// Determine if collision can even be considered
-			if (filterCollision(a, b)) {
-				let info = detectCollision(a, b)
-				// If collision is valid
-				if (info) {
-					a.wake(); b.wake();
-					correctCollision(a, b, info)
-					resolveCollision(a, b, info)
+
+	// Executes one physics step
+	step(dt) {
+		// Update phase
+		for (let i = 0; i < this.rbs.length; i++) {
+			this.rbs[i].update(dt * timescale)
+		}
+		
+		// Collision detection phase (loop through all pairs of rigidbodies)
+		if (this.collide) {
+			for (let i = 0; i < this.rbs.length; i++) {
+				for (let j = i + 1; j < this.rbs.length; j++) {
+					let a = this.rbs[i]
+					let b = this.rbs[j]
+					
+					// Determine if collision can even be considered
+					if (filterCollision(a, b)) {
+						let info = detectCollision(a, b)
+						// If collision is valid
+						if (info) {
+							a.wake(); b.wake();
+							correctCollision(a, b, info)
+							resolveCollision(a, b, info)
+						}
+					}
 				}
 			}
 		}
+		
+		// Update constraints
+		for (let i = 0; i < this.consts.length; i++) {
+			this.consts[i].update(dt * timescale)
+		}
+	}
+
+	// Calculate multiple physics steps (used for rendering)
+	multiStep(dt, count=1) {
+		let smallDt = dt / count
+		for (let i = 0; i < count; i++) {
+			this.step(smallDt)
+		}
 	}
 	
-	// Update constraints
-	for (let i = 0; i < consts.length; i++) {
-		consts[i].update(dt * timescale)
-	}
-}
-
-// Calculate multiple physics steps (used for rendering)
-function multiStep(dt, count=1) {
-	let smallDt = dt / count
-	for (let i = 0; i < count; i++) {
-		step(smallDt)
-	}
 }
