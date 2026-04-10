@@ -1,5 +1,5 @@
 // Physics engine
-var phys = new SimplePhysJS()
+var phys = new SimplePhysJS({ timescale: 8 })
 
 // Immovable walls
 
