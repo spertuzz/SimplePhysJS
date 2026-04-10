@@ -122,7 +122,7 @@ function render() {
 			
 			ctx.moveTo(v0.x, v0.y)
 			// Iterate through all following pixels and draw sine wave
-			for (let j = 0; j <= distance; j++) {
+			for (let j = 0; j <= distance; j += 5) {
 				// Current position on straight line distance
 				let cX = v0.x + j * ux
 				let cY = v0.y + j * uy
