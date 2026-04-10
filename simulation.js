@@ -3,6 +3,11 @@ var phys = new SimplePhysJS({
 	timescale: 8
 })
 
+// SPS update callback
+phys.spsUpdate = function(sps) {
+	console.log(sps)
+}
+
 // Immovable walls
 
 new Rigidbody({
@@ -178,7 +183,7 @@ new Spring({
 for (let i = 0; i < phys.rbs.length; i++) {
 	let rb = phys.rbs[i]
 	rb.tags.red = 0
-	rb.onCollide = (other, pack) => {
+	rb.onCollide = function(other, pack) {
 		rb.tags.red = 5
 	}
 }
