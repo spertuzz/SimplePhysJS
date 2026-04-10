@@ -135,12 +135,13 @@ class Rigidbody {
 
 		// Add to global rigidbody storage
 		parent.rbs.push(this)
+		this.parent = parent
 	}
 
 	// Remove a rigidbody from the engine
 	destroy() {
 		// Detach constraints attached to the rigidbody
-		for (let i = 0; i < this.constraints.length; i++) {
+		for (let i = this.constraints.length - 1; i >= 0; i--) {
 			this.constraints[i].detach()
 		}
 		
@@ -493,6 +494,7 @@ class Spring {
 		
 		// Add to global constraint storage
 		parent.consts.push(this)
+		this.parent = parent
 	}
 	
 	// Applies spring forces onto both objects
@@ -526,9 +528,9 @@ class Spring {
 		}
 		
 		// Remove constraint from the general list
-		let indexC = this.consts.indexOf(this)
+		let indexC = this.parent.consts.indexOf(this)
 		if (indexC > -1) {
-			this.consts.splice(indexC, 1)
+			this.parent.consts.splice(indexC, 1)
 		}
 	}
 	
@@ -866,7 +868,7 @@ class SimplePhysJS {
 	step(dt) {
 		// Update phase
 		for (let i = 0; i < this.rbs.length; i++) {
-			this.rbs[i].update(dt * timescale)
+			this.rbs[i].update(dt * this.timescale)
 		}
 		
 		// Collision detection phase (loop through all pairs of rigidbodies)
@@ -892,7 +894,7 @@ class SimplePhysJS {
 		
 		// Update constraints
 		for (let i = 0; i < this.consts.length; i++) {
-			this.consts[i].update(dt * timescale)
+			this.consts[i].update(dt * this.timescale)
 		}
 	}
 
