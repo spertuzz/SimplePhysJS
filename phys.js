@@ -97,6 +97,11 @@ class Vector2 {
 class Rigidbody {
 	
 	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false, parent=null} = {}) {
+		// Require parent
+		if (!parent) {
+			throw new Error('Object must have a parent engine!')
+		}
+		
 		// Main physical properties
 		this.mass = mass
 		this.pos = pos || new Vector2()
@@ -144,13 +149,13 @@ class Rigidbody {
 	update(dt=0) {
 		if (this.mass === 0 || this.asleep() || this.ghost) return
 		
-		let gMag = g.magnitude()
+		let gMag = this.parent.g.magnitude()
 		let vSleep = dt * gMag / 100
 		let aSleep = dt * 10
 		let damp = (1 - dt / 100)
 		
 		// Add gravity vector
-		this.addForce(dt, g.multiply(this.mass))
+		this.addForce(dt, this.parent.g.multiply(this.mass))
 		
 		let velMag = this.vel.magnitude()
 		if (velMag < vSleep) {
@@ -415,6 +420,11 @@ class Rigidbody {
 class Spring {
 	
 	constructor({a=null, b=null, posA=null, posB=null, k=1, rest=1, width=5, parent=null} = {}) {
+		// Require parent
+		if (!parent) {
+			throw new Error('Object must have a parent engine!')
+		}
+		
 		// Define rigid bodies
 		this.a = a
 		this.b = b
@@ -430,7 +440,8 @@ class Spring {
 				shape: {
 					type: 'Ball',
 					radius: 1
-				}
+				},
+				parent: parent
 			})
 			this.pointA = new Vector2()
 		}
@@ -445,7 +456,8 @@ class Spring {
 				shape: {
 					type: 'Ball',
 					radius: 1
-				}
+				},
+				parent: parent
 			})
 			this.pointB = new Vector2()
 		}
