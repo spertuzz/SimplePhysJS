@@ -96,7 +96,7 @@ class Vector2 {
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false, parent=null} = {}) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false, canCollide=true, parent=null} = {}) {
 		// Require parent
 		if (!parent) {
 			throw new Error('Object must have a parent engine!')
@@ -127,6 +127,12 @@ class Rigidbody {
 		// Internal sleep counter
 		this.sleep = 0
 		this.ghost = ghost
+		this.canCollide = canCollide
+		
+		// For hashmaps
+		this.hashIndexes = []
+		this.id = parent.idCounter
+		parent.idCounter++
 		
 		// Callbacks
 		this.onCollide = null
@@ -538,21 +544,15 @@ class Spring {
 
 // Filters collisions based on whether or not they are possible to improve execution
 function filterCollision(a, b) {
-	// Exclude obvious false cases
-	if (a.ghost || b.ghost) return false
-	let aStatic = a.mass === 0; let bStatic = b.mass === 0;
-	let aSleep = a.asleep(); let bSleep = b.asleep();
-	if (aStatic && bStatic) return false
-	if (aSleep && bSleep) return false
-	if (aSleep && bStatic) return false
-	if (aStatic && bSleep) return false
-	
+	// Get bounding boxes
 	let bA = a.getBoundingBox()
 	let bB = b.getBoundingBox()
 	
+	// Get coordinates
 	let xMinA = bA[0]; let xMaxA = bA[1]; let yMinA = bA[2]; let yMaxA = bA[3];
 	let xMinB = bB[0]; let xMaxB = bB[1]; let yMinB = bB[2]; let yMaxB = bB[3];
 	
+	// Determine if coordinates overlap
 	let xCondit = (xMaxA > xMinB) && (xMaxB > xMinA)
 	let yCondit = (yMaxA > yMinB) && (yMaxB > yMinA)
 	
@@ -853,15 +853,119 @@ function resolveCollision(a, b, info) {
 // Actual physics objects
 class SimplePhysJS {
 
-	constructor({timescale=1, g=null, collide=true} = {}) {
+	constructor({timescale=1, g=null, collide=true, cellSize=30} = {}) {
 		// Important global parameters
 		this.timescale = timescale
 		this.g = g || new Vector2(0, -10)
 		this.collide = collide
+		this.cellSize = cellSize
+		this.idCounter = 0
 		
 		// Object storage
 		this.rbs = []
 		this.consts = []
+		
+		// Metrics
+		this.lastCheck = performance.now()
+		this.stepSum = 0
+		
+		// Callbacks
+		this.spsUpdate = null
+	}
+	
+	// Calculates SPS as a metric
+	calculateSPS() {
+		// Increment time and steps
+		let now = performance.now()
+		this.stepSum++
+		
+		// Check if a second passed
+		if (now - this.lastCheck >= 1000) {
+			// Reset and return step rate
+			this.lastCheck = now
+			if (this.spsUpdate) this.spsUpdate(this.stepSum)
+			this.stepSum = 0
+		}
+	}
+	
+	// Return a spatial hash of all objects
+	getHash() {
+		let hash = {}
+		// Loop through all objects to add them to hash
+		for (let i = 0; i < this.rbs.length; i++) {
+			// Setup rigidbody variables
+			let rb = this.rbs[i]
+			if (!rb.canCollide || rb.ghost) continue
+			let boundingBox = rb.getBoundingBox()
+			
+			// Get edge coordinates for the object
+			let minX = Math.floor(boundingBox[0] / this.cellSize)
+			let maxX = Math.floor(boundingBox[1] / this.cellSize)
+			let minY = Math.floor(boundingBox[2] / this.cellSize)
+			let maxY = Math.floor(boundingBox[3] / this.cellSize)
+			
+			// Get indexes
+			let indexes = []
+			for (let x = minX; x <= maxX; x++) {
+				for (let y = minY; y <= maxY; y++) {
+					// Create unique hash and apply
+					let index = 'x' + x.toString() + '_y' + y.toString()
+					indexes.push(index)
+					if (index in hash) {
+						hash[index].push(rb)
+					}
+					else {
+						hash[index] = [rb]
+					}
+				}
+			}
+			
+			// Update rb indexes
+			rb.hashIndexes = indexes
+		}
+		
+		// Return final map
+		return hash
+	}
+	
+	// Get collision pairs from hash
+	getCollPairs() {
+		// Get spatial hash
+		let hash = this.getHash()
+		
+		let pairs = []
+		let pairSet = new Set()
+		// Loop through keys in the hash
+		let keys = Object.keys(hash)
+		for (let k = 0; k < keys.length; k++) {
+			// Get current key
+			let key = keys[k]
+			
+			// Loop through all pairs of objects in the key
+			for (let i = 0; i < hash[key].length; i++) {
+				for (let j = i + 1; j < hash[key].length; j++) {
+					// Get both rigidbodies
+					let a = hash[key][i]
+					let b = hash[key][j]
+					
+					// Exclude obvious false cases
+					let excludeA = a.mass === 0 || a.asleep()
+					let excludeB = b.mass === 0 || b.asleep()
+					if (excludeA && excludeB) continue
+					
+					// Check if pair has been chosen using an id (sets take O(1) time)
+					let pairId = a.id < b.id ? a.id.toString() + '_' + b.id.toString() : b.id.toString() + '_' + a.id.toString()
+					if (!pairSet.has(pairId)) {
+						// Push pair if valid
+						pairs.push([a, b])
+						pairSet.add(pairId)
+					}
+				}
+			}
+		}
+		
+		// Return final list
+		return pairs
 	}
 
 	// Executes one physics step
@@ -873,20 +977,20 @@ class SimplePhysJS {
 		
 		// Collision detection phase (loop through all pairs of rigidbodies)
 		if (this.collide) {
-			for (let i = 0; i < this.rbs.length; i++) {
-				for (let j = i + 1; j < this.rbs.length; j++) {
-					let a = this.rbs[i]
-					let b = this.rbs[j]
-					
-					// Determine if collision can even be considered
-					if (filterCollision(a, b)) {
-						let info = detectCollision(a, b)
-						// If collision is valid
-						if (info) {
-							a.wake(); b.wake();
-							correctCollision(a, b, info)
-							resolveCollision(a, b, info)
-						}
+			let pairs = this.getCollPairs()
+			for (let i = 0; i < pairs.length; i++) {
+				let pair = pairs[i]
+				let a = pair[0]
+				let b = pair[1]
+				
+				// Determine if collision can even be considered
+				if (filterCollision(a, b)) {
+					let info = detectCollision(a, b)
+					// If collision is valid
+					if (info) {
+						a.wake(); b.wake();
+						correctCollision(a, b, info)
+						resolveCollision(a, b, info)
 					}
 				}
 			}
@@ -896,6 +1000,9 @@ class SimplePhysJS {
 		for (let i = 0; i < this.consts.length; i++) {
 			this.consts[i].update(dt * this.timescale)
 		}
+		
+		// Update step metric
+		this.calculateSPS(dt)
 	}
 
 	// Calculate multiple physics steps (used for rendering)
