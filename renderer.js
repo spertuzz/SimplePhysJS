@@ -17,7 +17,7 @@ function render() {
     if (dt > 0.1) dt = 0.1
     
     // Trigger a physics step
-    multiStep(dt, repeat)
+    phys.multiStep(dt, repeat)
     
     // Set up canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -31,8 +31,8 @@ function render() {
     ctx.lineWidth = 2;
     
     // Draw each rigidbody
-    for (let i = 0; i < rbs.length; i++) {
-        let rb = rbs[i]
+    for (let i = 0; i < phys.rbs.length; i++) {
+        let rb = phys.rbs[i]
     
         // Start pen
         ctx.beginPath()
@@ -94,8 +94,8 @@ function render() {
 		ctx.strokeStyle = defColor;
     }
 	
-	for (let i = 0; i < consts.length; i++) {
-		let c = consts[i]
+	for (let i = 0; i < phys.consts.length; i++) {
+		let c = phys.consts[i]
 		
 		// Start pen
 		ctx.beginPath()
