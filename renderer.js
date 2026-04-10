@@ -1,7 +1,7 @@
 const canvas = document.getElementById('main')
 const ctx = canvas.getContext('2d')
 
-repeat = 100
+repeat = 5
 drawTriangles = true
 
 // Render frame
