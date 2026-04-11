@@ -187,3 +187,22 @@ for (let i = 0; i < phys.rbs.length; i++) {
 		rb.tags.red = 5
 	}
 }
+
+// Renderer
+var renderer = new PhysRenderer({
+	phys: phys,
+	canvas: document.getElementById('main'),
+	drawTriangles: false,
+	fillShapes: true
+})
+
+// Collision callback renderer function
+renderer.preShape = function(rb) {
+	if ('red' in rb.tags) {
+		if (rb.tags.red > 0) {
+			renderer.ctx.strokeStyle = '#ff0000'
+			renderer.ctx.fillStyle = '#ff0000'
+			rb.tags.red--
+		}
+	}
+}
