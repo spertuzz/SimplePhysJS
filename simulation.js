@@ -1,6 +1,6 @@
 // Physics engine object
 var phys = new SimplePhysJS({
-	timescale: 8
+	timescale: 2
 })
 
 // SPS update callback
@@ -12,170 +12,170 @@ phys.spsUpdate = function(sps) {
 
 new Rigidbody({
 	mass: 0,
-	pos: new Vector2(0, 10),
+	pos: new Vector2(0, 1),
     shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(300, 10),
-			new Vector2(300, -10),
-			new Vector2(-300, -10),
-			new Vector2(-300, 10)
+			new Vector2(30, 1),
+			new Vector2(30, -1),
+			new Vector2(-30, -1),
+			new Vector2(-30, 1)
 		]
 	},
-	bounce: 1,
 	parent: phys
 })
 
 new Rigidbody({
 	mass: 0,
-	pos: new Vector2(0, 440),
+	pos: new Vector2(0, 44),
 	shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(300, 10),
-			new Vector2(300, -10),
-			new Vector2(-300, -10),
-			new Vector2(-300, 10)
+			new Vector2(30, 1),
+			new Vector2(30, -1),
+			new Vector2(-30, -1),
+			new Vector2(-30, 1)
 		]
 	},
-	bounce: 1,
 	parent: phys
 })
 
 new Rigidbody({
 	mass: 0,
-	pos: new Vector2(-290, 225),
+	pos: new Vector2(-29, 22.5),
 	shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(10, 205),
-			new Vector2(10, -205),
-			new Vector2(-10, -205),
-			new Vector2(-10, 205)
+			new Vector2(1, 20.5),
+			new Vector2(1, -20.5),
+			new Vector2(-1, -20.5),
+			new Vector2(-1, 20.5)
 		]
 	},
-	bounce: 1,
 	parent: phys
 })
 
 new Rigidbody({
 	mass: 0,
-	pos: new Vector2(290, 225),
+	pos: new Vector2(29, 22.5),
 	shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(10, 205),
-			new Vector2(10, -205),
-			new Vector2(-10, -205),
-			new Vector2(-10, 205)
+			new Vector2(1, 20.5),
+			new Vector2(1, -20.5),
+			new Vector2(-1, -20.5),
+			new Vector2(-1, 20.5)
 		]
 	},
-	bounce: 1,
 	parent: phys
 })
 
 // Moving objects
 
 new Rigidbody({
-	mass: 10,
-	pos: new Vector2(0, 200),
+	mass: 1,
+	pos: new Vector2(0, 20),
 	shape: {
 		type: 'Ball',
-		radius: 10
+		radius: 1
 	},
-	bounce: 1,
 	parent: phys
 })
 
 new Rigidbody({
-	mass: 10,
-	pos: new Vector2(100, 200),
+	mass: 1,
+	pos: new Vector2(10, 20),
 	shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(20, 20),
-			new Vector2(20, -20),
-			new Vector2(-20, -20),
-			new Vector2(-20, 20)
+			new Vector2(2, 2),
+			new Vector2(2, -2),
+			new Vector2(-2, -2),
+			new Vector2(-2, 2)
 		]
 	},
-	bounce: 1,
 	parent: phys
 })
 
 new Rigidbody({
-	mass: 20,
-	pos: new Vector2(-100, 50),
+	mass: 2,
+	pos: new Vector2(-10, 5),
 	shape: {
 		type: 'Ball',
-		radius: 20
+		radius: 2
 	},
-	bounce: 1,
-	vel: new Vector2(20, 20),
+	vel: new Vector2(2, 2),
+	parent: phys
+})
+
+new Rigidbody({
+	mass: 0,
+	pos: new Vector2(0, 10),
+	shape: {
+		type: 'Ball',
+		radius: 1
+	},
 	parent: phys
 })
 
 let s1 = new Rigidbody({
-	mass: 10,
-	pos: new Vector2(-120, 150),
-	theta: 20,
-	shape: {
-		type: 'Polygon',
-		vertices: [
-			new Vector2(20, 20),
-			new Vector2(20, -20),
-			new Vector2(-20, -20),
-		]
-	},
-	bounce: 1,
-	parent: phys
-})
-
-let s0 = new Rigidbody({
-	mass: 10,
-	pos: new Vector2(100, 300),
+	mass: 1,
+	pos: new Vector2(-12, 15),
 	theta: 1,
 	shape: {
 		type: 'Polygon',
 		vertices: [
-			new Vector2(0, 20),
-			new Vector2(20, -40),
-			new Vector2(0, -20),
-			new Vector2(-20, -40)
+			new Vector2(2, 2),
+			new Vector2(2, -2),
+			new Vector2(-2, -2),
 		]
 	},
-	bounce: 1,
-	vel: new Vector2(30, 30),
+	parent: phys
+})
+
+let s0 = new Rigidbody({
+	mass: 1,
+	pos: new Vector2(10, 30),
+	theta: 1,
+	shape: {
+		type: 'Polygon',
+		vertices: [
+			new Vector2(0, 2),
+			new Vector2(2, -4),
+			new Vector2(0, -2),
+			new Vector2(-2, -4)
+		]
+	},
+	vel: new Vector2(3, 3),
 	parent: phys
 })
 
 
 let s2 = new Rigidbody({
-	mass: 10,
-	pos: new Vector2(140, 100),
+	mass: 1,
+	pos: new Vector2(14, 10),
 	shape: {
 		type: 'Ball',
-		radius: 10
+		radius: 1
 	},
-	bounce: 1,
-	vel: new Vector2(10, 10),
+	vel: new Vector2(1, 1),
 	parent: phys
 })
 
 new Spring({
 	a: s0,
-	posB: new Vector2(0, 430),
-	rest: 60,
-	k: 5,
+	posB: new Vector2(0, 43),
+	rest: 6,
+	k: 1,
 	parent: phys
 })
 
 new Spring({
 	a: s1,
 	b: s2,
-	posA: new Vector2(20, 20),
-	rest: 40,
-	k: 5,
+	posA: new Vector2(2, 2),
+	rest: 4,
+	k: 1,
 	parent: phys
 })
 
@@ -193,7 +193,7 @@ var renderer = new PhysRenderer({
 	phys: phys,
 	canvas: document.getElementById('main'),
 	drawTriangles: false,
-	fillShapes: true
+	fillShapes: false
 })
 
 // Collision callback renderer function
