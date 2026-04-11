@@ -80,6 +80,13 @@ new Rigidbody({
     parent: phys
 })
 
+// This creates a renderer (starts drawing automatically)
+const renderer = new PhysRenderer({
+    phys: phys,  // Parent engine
+    canvas: myCanvas,  // Canvas to draw on
+    drawTriangles: true  // Optional parameter to draw the triangles of triangulated polygons
+})
+
 // More optional parameters are available and callbacks.
 ```
 
