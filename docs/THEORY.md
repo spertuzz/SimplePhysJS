@@ -112,7 +112,21 @@ $$\Delta\vec{v}_p \cdot \vec{n} = -(1 + e)\vec{v}\_{pi} \cdot \vec{n} = -(1 + e)
 
 So, with this formula, we can calculate the magnitude of the impulse applied to both objects, and then we can apply one impulse to each body in opposite directions relative to the normal vector.
 
-You might've noticed, though, that some previously mentioned collisions may have two contact points. In this case, we would simply do this once for each point and apply the impulses sequentially, calculating each following one in terms of the updated velocities.
+You might've noticed, though, that some previously mentioned collisions may have two contact points. In this case, we would simply do this once for each point and apply the impulses sequentially, calculating each following one in terms of the updated velocities. For this to ultimately reach the target impulse, we can track the current impulse applied to each point and add whatever's left on each iteration while not going over.
+
+But... there's something left, isn't there?
+
+### Friction
+
+The world isn't perfect, and our objects are prone to experiencing friction! Friction is a force that opposes the direction of motion, so we can calculate it in a very similar way to our impulse force. You may ask why we can just borrow from our impulse formula, and it's because friction aims to oppose an object's motion. So we can calculate the total impulse necessary to fully oppose the objects' motion and tweak it later.
+
+Instead of projecting the relative velocity of both objects onto the normal vector, we can project it onto the tangent vector $\vec{t}$ (which is perpendicular to the normal vector). We divide by a similar denominator of $\frac{1}{m_a} + \frac{1}{m_b} + \frac{(\vec{r_a} \times \vec{t})^2}{I_a} + \frac{(\vec{r_b} \times \vec{t})^2}{I_b}$, and this gives us the exact amount of force necessary to oppose the motion.
+
+$$J_f = \frac{-(\vec{v}\_{diff} \cdot \vec{t})}{\frac{1}{m_a} + \frac{1}{m_b} + \frac{(\vec{r_a} \times \vec{t})^2}{I_a} + \frac{(\vec{r_b} \times \vec{t})^2}{I_b}}$$
+
+Notice that we didn't place a minus sign because we want the direction of motion here to be the opposite.
+
+Now, we must limit the friction. Coulomb's law tells us that the force of friction cannot exceed the objects' normal force multiplied by the frictional coefficient $\mu$, which is different for every material. Thus, we must clamp this value between $-J\mu$ and $J\mu$, where $J$ is the impulse we applied across the normal vector during our impulse resolution.
 
 ---
 
