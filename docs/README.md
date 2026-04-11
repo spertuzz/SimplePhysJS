@@ -19,31 +19,47 @@ Welcome! SimplePhysJS is meant to be a simple, lightweight rigidbody physics eng
   - Applies forces (both linear and angular components).
   - Placed between two ends which can be rigidbodies or static points.
   - Modifiable resting length and spring constant.
+- **`SimplePhysJS` class:** The actual engine.
+  - Create engine instances which you can control at will.
+  - Use functions like `step(dt)` and `multiStep(dt, count)` to advance the simulation.
+  - Fun things like `addRadialImpulse(pos, radius, power)`.
+  - Diagnostic callbacks like `spsUpdate`.
+- **`PhysRenderer` class:** A default renderer for the engine.
+  - Create render instances that tie to the engine.
+  - Animate and visualize collision simulations.
+  - Change properties like `lineColor`, `fillShapes`, `drawTriangles`, and more.
+  - Modify intermediate functions like `preDraw`, `preShape`, and `preConst` to add properties and change rendering.
 ### Simulation
-- Collisions between all types of rigidbodies with ranging elasticity (restitution).
+- Collisions between all types of rigidbodies with ranging elasticity (restitution) and friction.
   - Collisions are detected using the SAT (Separating Axis Theorem)
 - Customizable callbacks for collisions (including pre-packaged collision info).
 - Some distance-based constraints like springs.
 - 'Tweakable' variables to change interactions and performance, like ways to change the timescale and gravity vector.
-- 'Headless' design: The actual engine is completely separate from anything else.
-  - The project also features a `renderer` and `simulation` file to actually render and view different simulations.
+- 'Headless' design: The actual engine is completely separate from anything else, and comes with a built-in renderer.
+  - The project also features a `simulation` file to actually render and view different simulations.
 
 ## Quick Start
 
-SimplePhysJS is a very easy engine to get started with. First, you'll need to have use the `phys.js` file, as it performs all of the calculations. Essentially, that is the actual engine. You can then use its classes and functions from another file (in the case of my demo, `simulation.js` and `canvas.js`) in order to set up your own simulation and render the results.
+SimplePhysJS is a very easy engine to get started with. First, you'll need to have use the `phys.js` file, as it performs all of the calculations. Essentially, that is the actual engine. You can then use its classes and functions from another file (in the case of my demo, `simulation.js`) in order to set up your own simulation and render the results.
 
 To create a rigidbody, you must use the `Rigidbody` class:
 ```javascript
+// This creates the actual engine instance
+const phys = new SimplePhysJS({
+    g: new Vector2(0, -5),  // Gravity vector
+    timescale: 2  // Engine timescale
+})
+
 // This creates a ball
 new Rigidbody({
     mass: 10, // Mass
     pos: new Vector2(10, 10),  // Position
-    theta: 0,  // Initial rotation about the centroid in radians
     shape: {  // Shape information
         type: 'Ball',  // Required for it to be a ball
         radius: 2
     },
-    bounce: 0.5  // Coefficient of restitution
+    bounce: 1,  // Coefficient of restitution
+    parent: phys  // Parent engine
 })
 
 // This creates a polygon
@@ -54,16 +70,17 @@ new Rigidbody({
     shape: {  // Shape information
         type: 'Polygon',  // Required for it to be a polygon
         vertices: [  // Vertices in CLOCKWISE order, relative to pos
-            new Vector2(5, 5),  // Position of vertex 1
-            new Vector2(5, -5),  // Position of vertex 2, etc...
-            new Vector2(-5, -5),
-            new Vector2(-5, 5)
+            new Vector2(1, 1),  // Position of vertex 1
+            new Vector2(1, -1),  // Position of vertex 2, etc...
+            new Vector2(-1, -1),
+            new Vector2(-1, 1)
         ]
     },
-    bounce: 1  // Coefficient of restitution
+    bounce: 1,  // Coefficient of restitution
+    parent: phys
 })
 
-// More optional parameters are available.
+// More optional parameters are available and callbacks.
 ```
 
 Using this will spawn the rigidbodies once the simulation starts. They can also be spawned mid-execution.
@@ -76,8 +93,15 @@ This engine certainly isn't done. There's still a lot to work on and many optimi
     - [x] Velocity damping and clamping
     - [x] Object sleeping
     - [x] Improved triangulation
+    - [x] Spatial hashing collision filter
     - [ ] Improved integration methods (like Verlet)
-- [x] **Collision callback API and other tracking:** Ways to track collisions and other movement variables to increase utility.
+- [x] **Callbacks and other forms of tracking:** Ways to track collisions and other movement variables to increase utility.
+    - [x] Collision callbacks
+    - [x] Simulation diagnostics (steps per second, etc.)
+- [ ] **More physics features:** Things like friction and missing interactions.
+    - [x] Explosions (radial impulses)
+    - [x] Object friction
+    - [ ] Air resistance
 - [ ] **Distance-based constraints:** Springs, rods, that kind of stuff.
     - [x] Springs
     - [ ] Rods
