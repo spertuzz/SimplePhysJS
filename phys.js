@@ -1014,3 +1014,202 @@ class SimplePhysJS {
 	}
 	
 }
+
+// Default renderer class (to be used with canvases)
+class PhysRenderer {
+	
+	constructor({canvas=null, phys=null, substeps=5, fillShapes=false, drawTriangles=false, lineColor='#ffffff', fillColor='#ffffff', lineWidth=2} = {}) {
+		// Check if a canvas and engine has been selected
+		if (!canvas) {
+			throw new Error('Renderer must have a canvas!')
+		}
+		if (!phys) {
+			throw new Error('Renderer must have an engine attached!')
+		}
+		
+		// Get important canvas properties
+		this.canvas = canvas
+		this.ctx = canvas.getContext('2d')
+		
+		// Set other relevant properties
+		this.substeps = substeps
+		this.fillShapes = fillShapes
+		this.drawTriangles = drawTriangles
+		this.fillColor = fillColor
+		this.lineColor = lineColor
+		this.lineWidth = lineWidth
+		
+		// User-modifiable functions
+		this.preDraw = null
+		this.preShape = null
+		this.preConst = null
+		
+		// Start the cycle
+		this.phys = phys
+		this.lastTime = performance.now()
+		requestAnimationFrame(this.render.bind(this))
+	}
+	
+	render() {
+		// Calculate change in time
+		let newTime = performance.now()
+		let dt = (newTime - this.lastTime) / 1000
+		this.lastTime = newTime
+		
+		// Prevent massive physics jumps
+		if (dt > 0.1) dt = 0.1
+		
+		// Trigger a physics step
+		this.phys.multiStep(dt, this.substeps)
+		
+		// Set up canvas
+		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.save();
+		this.ctx.translate(this.canvas.width/2, this.canvas.height);
+		this.ctx.scale(1, -1);
+		
+		// Line settings
+		this.ctx.fillStyle = this.fillColor;
+		this.ctx.strokeStyle = this.lineColor;
+		this.ctx.lineWidth = this.lineWidth;
+		
+		// Call pre-draw function
+		if (this.preDraw) this.preDraw()
+		
+		// Draw each rigidbody
+		for (let i = 0; i < this.phys.rbs.length; i++) {
+			let rb = this.phys.rbs[i]
+		
+			// Start pen
+			this.ctx.beginPath()
+			
+			// Call pre-shape function
+			if (this.preShape) this.preShape(rb)
+		
+			// Ball case
+			if (rb.shape.type == 'Ball' || rb.ghost) {
+				let rad = rb.ghost ? 1 : rb.shape.radius
+				// Draw circular arc
+				this.ctx.arc(rb.pos.x, rb.pos.y, rad, 0, Math.PI * 2)
+				
+				// Draw line to view rotation
+				if (!rb.ghost) {
+					this.ctx.moveTo(rb.pos.x, rb.pos.y)
+					let spoke = rb.pos.add(new Vector2(rad, 0).rotate(rb.theta))
+					this.ctx.lineTo(spoke.x, spoke.y)
+				}
+			}
+			
+			// Polygon case
+			else if (rb.shape.type == 'Polygon') {
+				if (this.drawTriangles) {
+					// Get triangle list
+					let triangles = rb.shape.triangles
+					
+					// Draw each individual triangle
+					for (let t = 0; t < triangles.length; t++) {
+						// Get individual triangle
+						let triangle = triangles[t]
+						
+						// Begin at starting vertex
+						let start = rb.convertToWorld(triangle[0])
+						this.ctx.moveTo(start.x, start.y)
+						
+						// Draw each subsequent vertex
+						for (let j = 1; j < triangle.length; j++) {
+							let vertex = rb.convertToWorld(triangle[j])
+							this.ctx.lineTo(vertex.x, vertex.y)
+						}
+						
+						// Close shape
+						this.ctx.closePath()
+					}
+				}
+				else {
+					// Get vertices
+					let vertices = rb.shape.vertices
+					
+					// Begin at starting vertex
+					let start = rb.convertToWorld(vertices[0])
+					this.ctx.moveTo(start.x, start.y)
+					
+					// Move to each vertex and draw a line
+					for (let j = 1; j < vertices.length; j++) {
+						let vertex = rb.convertToWorld(vertices[j])
+						this.ctx.lineTo(vertex.x, vertex.y)
+					}
+					
+					// Close shape
+					this.ctx.closePath()
+				}
+			}
+			
+			// Fill shape if eligible
+			if (this.fillShapes) this.ctx.fill()
+			
+			// Close path and move on
+			this.ctx.stroke()
+			this.ctx.fillStyle = this.fillColor
+			this.ctx.strokeStyle = this.lineColor
+		}
+		
+		// Draw constraints
+		for (let i = 0; i < this.phys.consts.length; i++) {
+			let c = this.phys.consts[i]
+			
+			// Start pen
+			this.ctx.beginPath()
+			
+			// Call pre-constraint function
+			if (this.preConst) this.preConst(c)
+			
+			// Spring case
+			if (c.type == 'Spring') {
+				// Define points
+				let v0 = c.a.convertToWorld(c.pointA)
+				let v1 = c.b.convertToWorld(c.pointB)
+				
+				// Calculate difference and distance for later calculations
+				let dx = v1.x - v0.x
+				let dy = v1.y - v0.y
+				let distance = v1.subtract(v0).magnitude()
+				
+				// Define frequency and amplitude for the sine wave
+				let freq = Math.PI * 2 * c.k / distance
+				let amp = c.width
+				
+				// Create unit vectors for drawing the curve
+				let ux = dx / distance
+				let uy = dy / distance
+				let vx = -uy
+				let vy = ux
+				
+				// Go to starting point
+				this.ctx.moveTo(v0.x, v0.y)
+				
+				// Iterate through all following pixels and draw sine wave
+				for (let j = 0; j <= distance; j += 5) {
+					// Current position on straight line distance
+					let cX = v0.x + j * ux
+					let cY = v0.y + j * uy
+					
+					// Create offset from straight line point
+					let offset = Math.sin(j * freq) * amp
+					
+					// Draw line to offset points
+					this.ctx.lineTo(cX + offset * vx, cY + offset * vy)
+				}
+			}
+			
+			// Close path and finalize line
+			this.ctx.stroke()
+			this.ctx.fillStyle = this.fillColor
+			this.ctx.strokeStyle = this.lineColor
+		}
+		
+		// Prepare for next frame
+		this.ctx.restore()
+		requestAnimationFrame(this.render.bind(this))
+	}
+	
+}
