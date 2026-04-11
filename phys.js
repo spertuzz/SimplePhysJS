@@ -96,7 +96,7 @@ class Vector2 {
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, vel=null, angVel=0, ghost=false, canCollide=true, parent=null} = {}) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, friction=0.5, angFriction=0.05, vel=null, angVel=0, ghost=false, canCollide=true, parent=null} = {}) {
 		// Require parent
 		if (!parent) {
 			throw new Error('Object must have a parent engine!')
@@ -110,6 +110,8 @@ class Rigidbody {
 		// Shape properties
 		this.shape = shape
 		this.bounce = bounce
+		this.friction = friction
+		this.angFriction = angFriction
 		this.shape.centroid = this.centroid()
 		if (this.shape.type == 'Polygon') {
 			for (let i = 0; i < this.shape.vertices.length; i++) {
@@ -160,7 +162,7 @@ class Rigidbody {
 
 	// Check if a rigidbody is asleep
 	asleep() {
-		return this.sleep > 10
+		return this.sleep > 30
 	}
 
 	// Wake up the rigidbody from sleep
@@ -173,8 +175,8 @@ class Rigidbody {
 		if (this.mass === 0 || this.asleep() || this.ghost) return
 		
 		let gMag = this.parent.g.magnitude()
-		let vSleep = dt * gMag / 100
-		let aSleep = dt * 10
+		let vSleep = dt * gMag / 10
+		let aSleep = dt * 5
 		let damp = (1 - dt / 100)
 		
 		// Add gravity vector
@@ -344,7 +346,7 @@ class Rigidbody {
 						let a1 = polyArea([v, b, c])
 						let a2 = polyArea([a, v, c])
 						let a3 = polyArea([a, b, v])
-						if (a1 + a2 + a3 <= goal + 0.001) {
+						if (a1 + a2 + a3 < goal + 0.001) {
 							ear = false
 							break
 						}
@@ -437,12 +439,46 @@ class Rigidbody {
 		return axes
 	}
 	
+	// Check if a point is inside the rigidbody
+	checkInside(point=null) {
+		// Check cases
+		point = point || new Vector2()
+		if (this.shape.type == 'Ball') {
+			// Ball case: Check if distance is less than radius
+			let dist = this.pos.subtract(point).magnitude()
+			return dist <= this.shape.radius
+		}
+		else if (this.shape.type == 'Polygon') {
+			// Polygon case: Check if the point exists in any triangle
+			let triangles = this.shape.triangles
+			for (let i = 0; i < triangles.length; i++) {
+				// Get triangle vertices
+				let triangle = triangles[i]
+				let a = this.convertToWorld(triangle[0])
+				let b = this.convertToWorld(triangle[1])
+				let c = this.convertToWorld(triangle[2])
+				
+				// Get all areas
+				let goal = polyArea(triangle)
+				let a1 = polyArea([a, b, point])
+				let a2 = polyArea([a, point, c])
+				let a3 = polyArea([point, b, c])
+				
+				// Check if sum of areas equals goal
+				return a1 + a2 + a3 < goal + 0.001
+			}
+		}
+		
+		// Return false in some other case
+		return false
+	}
+	
 }
 
 // Spring constraint
 class Spring {
 	
-	constructor({a=null, b=null, posA=null, posB=null, k=1, rest=1, width=5, parent=null} = {}) {
+	constructor({a=null, b=null, posA=null, posB=null, k=1, damping=0.1, rest=1, coils=5, width=1, parent=null} = {}) {
 		// Require parent
 		if (!parent) {
 			throw new Error('Object must have a parent engine!')
@@ -494,6 +530,8 @@ class Spring {
 		
 		// Spring constant and rest length
 		this.k = k
+		this.damping = damping
+		this.coils = coils
 		this.width = width
 		this.rest = rest
 		this.type = 'Spring'
@@ -512,7 +550,19 @@ class Spring {
 		// Calculate force using F = -kx
 		let diff = worldB.subtract(worldA)
 		let extension = diff.magnitude() - this.rest
-		let force = diff.normalize().multiply(-this.k * extension)
+		
+		// Get difference in velocity
+		let bpA = this.a.convertToWorld(this.pointA).subtract(this.a.convertToWorld())
+		let bpB = this.b.convertToWorld(this.pointB).subtract(this.b.convertToWorld())
+		let a_vel = this.a.vel.add(bpA.scalarCross(this.a.angVel))
+		let b_vel = this.b.vel.add(bpB.scalarCross(this.b.angVel))
+		let vel_diff = b_vel.subtract(a_vel)
+		
+		// Get damping component
+		let vel_dot = vel_diff.dot(diff.normalize())
+		
+		// Get force
+		let force = diff.normalize().multiply(-this.k * extension - this.damping * vel_dot)
 		
 		// Apply forces in opposite directions
 		this.a.addForce(dt, force.multiply(-1), worldA)
@@ -766,8 +816,10 @@ function resolveCollision(a, b, info) {
 	// Ignore collisions between two immovable masses
 	if (total_inv === 0) return
 
-	// Calculate restitution for later
-	let restitution = a.bounce * b.bounce
+	// Calculate restitution and friction for later
+	let restitution = (a.bounce * b.bounce) ** 0.5
+	let friction = (a.friction * b.friction) ** 0.5
+	let angFriction = (a.angFriction * b.angFriction) ** 0.5
 
 	// Calculate centroids
 	let aCenter = a.convertToWorld()
@@ -799,6 +851,7 @@ function resolveCollision(a, b, info) {
 		targets.push(vel_diff.multiply(-restitution).dot(info.normal))
 	}
 	let acc = new Array(amt).fill(0)
+	let accF = new Array(amt).fill(0)
 	
 	for (let iter = 0; iter < iters; iter++)
 	{
@@ -826,6 +879,7 @@ function resolveCollision(a, b, info) {
 			if (b.inertia > 0) this_inv += (bpB.cross(info.normal) ** 2) / b.inertia
 			f /= this_inv
 			
+			// Get next add for accumulator
 			let app = Math.max(0, acc[i] + f)
 			let imp = app - acc[i]
 			acc[i] = app
@@ -833,6 +887,54 @@ function resolveCollision(a, b, info) {
 			// Add relevant impulses
 			a.addImpulse(info.normal.multiply(-imp), point)
 			b.addImpulse(info.normal.multiply(imp), point)
+			
+			// Re-calculate variables
+			a_vel = a.vel.add(bpA.scalarCross(a.angVel))
+			b_vel = b.vel.add(bpB.scalarCross(b.angVel))
+			vel_diff = b_vel.subtract(a_vel)
+			
+			// Get tangent vector and speed for friction (and check if there's even friction at all)
+			let tangent = info.normal.perp()
+			let f_vel = vel_diff.dot(tangent)
+			if (Math.abs(f_vel) < 0.0001) continue
+			
+			// Calculate denominator for tangent impulse
+			let f_inv = total_inv
+			if (a.inertia > 0) f_inv += (bpA.cross(tangent) ** 2) / a.inertia
+			if (b.inertia > 0) f_inv += (bpB.cross(tangent) ** 2) / b.inertia
+			let f_imp = -f_vel / f_inv
+			
+			// Get next add for tangent accumulator
+			let maxF = acc[i] * friction
+			let appF = Math.max(-maxF, Math.min(maxF, accF[i] + f_imp))
+			f_imp = appF - accF[i]
+			accF[i] = appF
+			
+			// Add relevant tangent impulses
+			a.addImpulse(tangent.multiply(-f_imp), point)
+			b.addImpulse(tangent.multiply(f_imp), point)
+			
+			// Add rotational friction
+			if (angFriction === 0) continue
+			
+			// Get angular velocity difference
+			let ang_diff = b.angVel - a.angVel
+			if (Math.abs(ang_diff) < 0.0001) continue
+			
+			// Get "inverse mass" denominator
+			let inv_inertia_A = a.inertia === 0 ? 0 : 1 / a.inertia
+			let inv_inertia_B = b.inertia === 0 ? 0 : 1 / b.inertia
+			let denominator = inv_inertia_A + inv_inertia_B
+			if (denominator === 0) continue
+			
+			// Get impulse
+			let r_imp = -ang_diff / denominator
+			let max_r = acc[i] * angFriction
+			r_imp = Math.max(-max_r, Math.min(max_r, r_imp))
+			
+			// Add impulses
+			a.angVel -= r_imp * inv_inertia_A
+			b.angVel += r_imp * inv_inertia_B
 		}
 	}
 	
@@ -840,10 +942,13 @@ function resolveCollision(a, b, info) {
 	aPack.vel1 = a.vel; bPack.vel1 = b.vel;
 	aPack.angVel1 = a.angVel; bPack.angVel1 = b.angVel;
 	let totalImpulse = 0
+	let totalFriction = 0
 	for (let i = 0; i < acc.length; i++) {
 		totalImpulse += acc[i]
+		totalFriction += accF[i]
 	}
 	aPack.impulse = totalImpulse; bPack.impulse = totalImpulse;
+	aPack.friction = totalFriction; bPack.friction = totalFriction;
 	
 	// Send return packages for callbacks
 	if (a.onCollide) a.onCollide(b, aPack)
@@ -853,7 +958,7 @@ function resolveCollision(a, b, info) {
 // Actual physics objects
 class SimplePhysJS {
 
-	constructor({timescale=1, g=null, collide=true, cellSize=30} = {}) {
+	constructor({timescale=1, g=null, collide=true, cellSize=3} = {}) {
 		// Important global parameters
 		this.timescale = timescale
 		this.g = g || new Vector2(0, -10)
@@ -871,6 +976,7 @@ class SimplePhysJS {
 		
 		// Callbacks
 		this.spsUpdate = null
+		this.onStep = null
 	}
 	
 	// Calculates SPS as a metric
@@ -1003,6 +1109,9 @@ class SimplePhysJS {
 		
 		// Update step metric
 		this.calculateSPS(dt)
+		
+		// Do thing
+		if (this.onStep) this.onStep(dt)
 	}
 
 	// Calculate multiple physics steps (used for rendering)
@@ -1013,12 +1122,105 @@ class SimplePhysJS {
 		}
 	}
 	
+	// Apply radial impulse
+	addRadialImpulse(pos=null, radius=10, power=10) {
+		// Fix position if null
+		pos = pos || new Vector2()
+		
+		// Iterate through all bodies
+		for (let i = 0; i < this.rbs.length; i++) {
+			// Check different shape types
+			let rb = this.rbs[i]
+			if (rb.shape.type == 'Ball') {
+				// Get calculate vector from point to closest edge on the circle
+				let distVector = rb.pos.subtract(pos)
+				let returnVector = distVector.normalize().multiply(-rb.shape.radius)
+				let sumVector = distVector.add(returnVector)
+				let trueVector = sumVector
+				
+				// If edge vector is not in the same direction as the center vector resort to center vector
+				if (rb.checkInside(pos)) {
+					trueVector = distVector
+					returnVector = new Vector2()
+				}
+				
+				// Determine if collision is valid
+				let dist = trueVector.magnitude()
+				if (dist < radius) {
+					// Add vector
+					let normal = trueVector.normalize()
+					let impulse = 1 - dist / radius
+					normal = normal.multiply(impulse * power)
+					rb.addImpulse(normal, rb.pos.add(returnVector))
+				}
+			}
+			else if (rb.shape.type == 'Polygon') {
+				// Get polygon vertices and define list for used closest points
+				let vertices = rb.shape.vertices
+				let intersections = []
+				let minimum = Infinity
+				
+				let check = true
+				if (rb.checkInside(pos)) {
+					check = false
+					intersections = [pos]
+					minimum = rb.convertToWorld().subtract(pos).magnitude()
+				}
+				
+				if (check) {
+					// Loop through all edges and find closest point per edge
+					for (let j = 0; j < vertices.length; j++) {
+						// Get edge endpoints
+						let v0 = rb.convertToWorld(vertices[j])
+						let v1 = j + 1 < vertices.length ? rb.convertToWorld(vertices[j + 1]) : rb.convertToWorld(vertices[0])
+						
+						// Get edge
+						let edge = v1.subtract(v0)
+						let fromV = pos.subtract(v0)
+						let frac = fromV.dot(edge) / edge.dot(edge)
+						frac = Math.max(0, Math.min(frac, 1))
+						let intersection = edge.multiply(frac).add(v0)
+						
+						// Check point distance
+						let dist = intersection.subtract(pos).magnitude()
+						if (dist < radius) {
+							// Add point if it belongs to the minimums
+							if (dist < minimum - 0.001) {
+								minimum = dist
+								intersections = [intersection]
+							}
+							else if (dist < minimum + 0.001) {
+								intersections.push(intersection)
+							}
+						}
+					}
+				}
+				
+				// Loop through all points and add forces equally
+				let div = intersections.length
+				if (div > 0) {
+					for (let j = 0; j < div; j++) {
+						// Get vertex and distance vectors
+						let vertex = intersections[j]
+						let distVector = vertex.subtract(pos)
+						
+						// Add impulse vector
+						let normal = distVector.normalize()
+						let impulse = 1 - minimum / radius
+						normal = normal.multiply(impulse * power / div)
+						rb.addImpulse(normal, vertex)
+					}
+				}
+			}
+		}
+	}
+	
 }
 
 // Default renderer class (to be used with canvases)
 class PhysRenderer {
 	
-	constructor({canvas=null, phys=null, substeps=5, fillShapes=false, drawTriangles=false, lineColor='#ffffff', fillColor='#ffffff', lineWidth=2} = {}) {
+	constructor({canvas=null, phys=null, substeps=5, scale=10, fillShapes=false, drawTriangles=false, lineColor='#ffffff', fillColor='#ffffff', lineWidth=2} = {}) {
 		// Check if a canvas and engine has been selected
 		if (!canvas) {
 			throw new Error('Renderer must have a canvas!')
@@ -1033,6 +1235,7 @@ class PhysRenderer {
 		
 		// Set other relevant properties
 		this.substeps = substeps
+		this.scale = scale
 		this.fillShapes = fillShapes
 		this.drawTriangles = drawTriangles
 		this.fillColor = fillColor
@@ -1066,12 +1269,12 @@ class PhysRenderer {
 		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 		this.ctx.save();
 		this.ctx.translate(this.canvas.width/2, this.canvas.height);
-		this.ctx.scale(1, -1);
+		this.ctx.scale(this.scale, -this.scale);
 		
 		// Line settings
 		this.ctx.fillStyle = this.fillColor;
 		this.ctx.strokeStyle = this.lineColor;
-		this.ctx.lineWidth = this.lineWidth;
+		this.ctx.lineWidth = this.lineWidth / this.scale;
 		
 		// Call pre-draw function
 		if (this.preDraw) this.preDraw()
@@ -1088,7 +1291,7 @@ class PhysRenderer {
 		
 			// Ball case
 			if (rb.shape.type == 'Ball' || rb.ghost) {
-				let rad = rb.ghost ? 1 : rb.shape.radius
+				let rad = rb.ghost ? 1 / this.scale : rb.shape.radius
 				// Draw circular arc
 				this.ctx.arc(rb.pos.x, rb.pos.y, rad, 0, Math.PI * 2)
 				
@@ -1175,7 +1378,7 @@ class PhysRenderer {
 				let distance = v1.subtract(v0).magnitude()
 				
 				// Define frequency and amplitude for the sine wave
-				let freq = Math.PI * 2 * c.k / distance
+				let freq = Math.PI * 2 * c.coils / distance
 				let amp = c.width
 				
 				// Create unit vectors for drawing the curve
@@ -1188,7 +1391,7 @@ class PhysRenderer {
 				this.ctx.moveTo(v0.x, v0.y)
 				
 				// Iterate through all following pixels and draw sine wave
-				for (let j = 0; j <= distance; j += 5) {
+				for (let j = 0; j < distance; j += 1 / this.scale) {
 					// Current position on straight line distance
 					let cX = v0.x + j * ux
 					let cY = v0.y + j * uy
@@ -1199,6 +1402,9 @@ class PhysRenderer {
 					// Draw line to offset points
 					this.ctx.lineTo(cX + offset * vx, cY + offset * vy)
 				}
+				
+				// Draw circular arc
+				this.ctx.arc(v1.x, v1.y, 1 / this.scale, 0, Math.PI * 2)
 			}
 			
 			// Close path and finalize line
