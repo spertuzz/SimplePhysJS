@@ -852,6 +852,7 @@ function resolveCollision(a, b, info) {
 	}
 	let acc = new Array(amt).fill(0)
 	let accF = new Array(amt).fill(0)
+	let accR = new Array(amt).fill(0)
 	
 	for (let iter = 0; iter < iters; iter++)
 	{
@@ -930,7 +931,9 @@ function resolveCollision(a, b, info) {
 			// Get impulse
 			let r_imp = -ang_diff / denominator
 			let max_r = acc[i] * angFriction
-			r_imp = Math.max(-max_r, Math.min(max_r, r_imp))
+			let appR = Math.max(-max_r, Math.min(max_r, accR[i] + r_imp))
+			r_imp = appR - accR[i]
+			accR[i] = appR
 			
 			// Add impulses
 			a.angVel -= r_imp * inv_inertia_A
