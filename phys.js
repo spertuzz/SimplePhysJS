@@ -96,7 +96,7 @@ class Vector2 {
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.5, friction=0.5, angFriction=0.05, vel=null, angVel=0, ghost=false, canCollide=true, parent=null} = {}) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.8, friction=0.7, angFriction=0.05, vel=null, angVel=0, ghost=false, canCollide=true, parent=null, supersecretdebugmode=false} = {}) {
 		// Require parent
 		if (!parent) {
 			throw new Error('Object must have a parent engine!')
@@ -128,6 +128,7 @@ class Rigidbody {
 		
 		// Internal sleep counter
 		this.sleep = 0
+		this.justG = false
 		this.ghost = ghost
 		this.canCollide = canCollide
 		
@@ -144,6 +145,9 @@ class Rigidbody {
 		// Add to global rigidbody storage
 		parent.rbs.push(this)
 		this.parent = parent
+		
+		// shhhhhh
+		this.supersecretdebugmode = supersecretdebugmode
 	}
 
 	// Remove a rigidbody from the engine
@@ -175,36 +179,48 @@ class Rigidbody {
 		if (this.mass === 0 || this.asleep() || this.ghost) return
 		
 		let gMag = this.parent.g.magnitude()
-		let vSleep = dt * gMag / 10
-		let aSleep = dt * 5
-		let damp = (1 - dt / 100)
+		let vSleep = dt * gMag * 0.25
+		let aSleep = dt * 1.5
+		let damp = (1 - (dt / 30))
 		
+		this.justG = this.vel.magnitude() < vSleep
+				
 		// Add gravity vector
 		this.addForce(dt, this.parent.g.multiply(this.mass))
+		let velResult = 'none '
+		let angResult = 'none '
 		
 		let velMag = this.vel.magnitude()
 		if (velMag < vSleep) {
+			velResult = 'sleep'
 			this.vel = new Vector2()  // Clamp velocity
 		}
 		else if (velMag < vSleep * 10) {
+			velResult = 'damp '
 			this.vel = this.vel.multiply(damp)  // Damp velocity
 		}
 		this.pos = this.pos.add(this.vel.multiply(dt))
 		
 		let absAng = Math.abs(this.angVel)
 		if (absAng < aSleep && this.constraints.length < 1) {
+			angResult = 'sleep'
 			this.angVel = 0  // Clamp angular velocity
 		}
 		else if (absAng < aSleep * 10 && this.constraints.length < 1) {
+			angResult = 'damp '
 			this.angVel *= damp  // Damp angular velocity
 		}
 		this.theta += this.angVel * dt
 		
-		if (absAng < aSleep && velMag < vSleep) {
+		if (absAng < aSleep && (velMag < vSleep || this.justG)) {
 			this.sleep += 1
 		}
 		else {
 			this.sleep = 0
+		}
+		
+		if (this.supersecretdebugmode) {
+			console.log('Velocity mode: ' + velResult + ' Angular Velocity Mode: ' + angResult)
 		}
 	}
 
@@ -465,7 +481,9 @@ class Rigidbody {
 				let a3 = polyArea([point, b, c])
 				
 				// Check if sum of areas equals goal
-				return a1 + a2 + a3 < goal + 0.001
+				if (a1 + a2 + a3 < goal + 0.0001) {
+					return true
+				}
 			}
 		}
 		
@@ -760,8 +778,8 @@ function detectCollision(a, b) {
 			let mins = []
 			let currentMin = Infinity
 			let slop = 0.001
-			for (let i = 0; i < notOwner.length; i++) {
-				let v = notObject.convertToWorld(notOwner[i])
+			for (let i = 0; i < notObject.shape.vertices.length; i++) {
+				let v = notObject.convertToWorld(notObject.shape.vertices[i])
 				let dot = v.dot(globalAx)
 				if (dot < currentMin - slop) {
 					currentMin = dot
@@ -809,8 +827,8 @@ function correctCollision(a, b, info) {
 // Resolves collisions by adding impulses
 function resolveCollision(a, b, info) {
 	// Gather inverse masses for later
-	let a_inv = a.mass === 0 ? 0 : 1 / a.mass
-	let b_inv = b.mass === 0 ? 0 : 1 / b.mass
+	let a_inv = (a.mass === 0) ? 0 : 1 / a.mass
+	let b_inv = (b.mass === 0) ? 0 : 1 / b.mass
 	let total_inv = a_inv + b_inv
 	
 	// Ignore collisions between two immovable masses
@@ -827,7 +845,9 @@ function resolveCollision(a, b, info) {
 
 	// Do for each contact point equally
 	let amt = info.point.length
-	let iters = amt < 2 ? 1 : 5
+	let iters = amt < 2 ? 1 : 10
+	
+	//if (!(a_inv === 0 || b_inv === 0)) restitution = restitution ** 0.025
 	
 	// Callback packages
 	let aPack = {}; let bPack = {};
@@ -888,16 +908,28 @@ function resolveCollision(a, b, info) {
 			// Add relevant impulses
 			a.addImpulse(info.normal.multiply(-imp), point)
 			b.addImpulse(info.normal.multiply(imp), point)
+		}
+	}
+	
+	for (let iter = 0; iter < iters; iter++)
+	{
+		for (let i = 0; i < amt; i++) {
+			let point = info.point[i]
+			let bpA = point.subtract(aCenter)
+			let bpB = point.subtract(bCenter)
+		
+			// Dot product to later scale for collision impulse
+			let a_vel = a.vel.add(bpA.scalarCross(a.angVel))
+			let b_vel = b.vel.add(bpB.scalarCross(b.angVel))
+			let vel_diff = b_vel.subtract(a_vel)
 			
-			// Re-calculate variables
-			a_vel = a.vel.add(bpA.scalarCross(a.angVel))
-			b_vel = b.vel.add(bpB.scalarCross(b.angVel))
-			vel_diff = b_vel.subtract(a_vel)
+			let impulse = vel_diff.dot(info.normal)
+			let target = targets[i]
 			
 			// Get tangent vector and speed for friction (and check if there's even friction at all)
 			let tangent = info.normal.perp()
 			let f_vel = vel_diff.dot(tangent)
-			if (Math.abs(f_vel) < 0.0001) continue
+			if (Math.abs(f_vel) < 0.000001) continue
 			
 			// Calculate denominator for tangent impulse
 			let f_inv = total_inv
