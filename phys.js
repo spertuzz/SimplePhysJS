@@ -96,7 +96,7 @@ class Vector2 {
 // Rigidbody class (physics object)
 class Rigidbody {
 	
-	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.8, friction=0.7, angFriction=0.05, vel=null, angVel=0, ghost=false, canCollide=true, parent=null, supersecretdebugmode=false} = {}) {
+	constructor({mass=0, pos=null, theta=0, shape={type: 'Ball', radius: 1}, bounce=0.8, friction=0, angFriction=0.01, vel=null, angVel=0, ghost=false, canCollide=true, parent=null, supersecretdebugmode=false} = {}) {
 		// Require parent
 		if (!parent) {
 			throw new Error('Object must have a parent engine!')
@@ -728,6 +728,8 @@ function detectCollision(a, b) {
 		let globalMax = -Infinity
 		let notOwner = null
 		let notObject = null
+		let otherOwner = null
+		let otherObject = null
 		for (let i = 0; i < a_triangles.length; i++) {
 			for (let j = 0; j < b_triangles.length; j++) {
 				let min = Infinity
@@ -767,8 +769,18 @@ function detectCollision(a, b) {
 					if (min > globalMax) {
 						globalMax = min
 						globalAx = bestAx
-						notOwner = foundX < aAxes.length ? bestT2 : bestT1
-						notObject = foundX < aAxes.length ? b : a
+						if (foundX < aAxes.length) {
+							notOwner = bestT2
+							notObject = b
+							otherOwner = bestT1
+							otherObject = a
+						}
+						else {
+							notOwner = bestT1
+							notObject = a
+							otherOwner = bestT2
+							otherObject = b
+						}
 					}
 				}
 			}
@@ -777,16 +789,84 @@ function detectCollision(a, b) {
 			globalMax = Math.min(globalMax, maxDepth)
 			let mins = []
 			let currentMin = Infinity
-			let slop = 0.001
+			let slop = 0.01
 			for (let i = 0; i < notObject.shape.vertices.length; i++) {
 				let v = notObject.convertToWorld(notObject.shape.vertices[i])
-				let dot = v.dot(globalAx)
+				let dot = Math.abs(v.dot(globalAx))
 				if (dot < currentMin - slop) {
 					currentMin = dot
 					mins = [v]
 				}
 				else if (dot < currentMin + slop) {
 					mins.push(v)
+				}
+			}
+			console.log(mins)
+						
+			if (mins.length > 2) {					
+				let min = 0
+				let minP = mins[0]
+				let max = 0
+				let maxP = mins[0]
+				
+				let dirV = mins[0].subtract(mins[1]).normalize()
+				for (let i = 1; i < mins.length; i++) {
+					let v = mins[i]
+					let dist = v.subtract(mins[0]).dot(dirV)
+					if (dist < min) {
+						min = dist
+						minP = v
+					}
+					else if (dist > max) {
+						max = dist
+						maxP = v
+					}
+				}
+				
+				if (false) {
+				
+					let otherMins = []
+					currentMin = Infinity
+					for (let i = 0; i < otherObject.shape.vertices.length; i++) {
+						let v = otherObject.convertToWorld(otherObject.shape.vertices[i])
+						let dot = Math.abs(v.dot(globalAx))
+						if (dot < currentMin - slop) {
+							currentMin = dot
+							otherMins = [v]
+						}
+						else if (dot < currentMin + slop) {
+							otherMins.push(v)
+						}
+					}
+													
+					if (otherMins.length > 1 && false) {
+						let minO = Infinity
+						let minPO = null
+						let maxO = -Infinity
+						let maxPO = null
+						
+						for (let i = 0; i < otherMins.length; i++) {
+							let v = otherMins[i]
+							let dist = v.subtract(mins[0]).dot(dirV)
+							if (dist < minO) {
+								minO = dist
+								minPO = v
+							}
+							if (dist > maxO) {
+								maxO = dist
+								maxPO = v
+							}
+						}
+						
+						let trueMin = min > minO ? minP : minPO
+						let trueMax = max < maxO ? maxP : maxPO
+						
+						mins = [trueMin, trueMax]
+					}
+				
+				}
+				else {
+					mins = [minP, maxP]
 				}
 			}
 			return {
@@ -813,7 +893,7 @@ function correctCollision(a, b, info) {
 	
 	// Parameters for collision correction
 	let slop = 0.01
-	let frac = 0.2
+	let frac = 0.1
 	
 	// Calculate vector to separate objects
 	let mag = frac * Math.max(info.depth - slop, 0) / total_inv
@@ -845,10 +925,8 @@ function resolveCollision(a, b, info) {
 
 	// Do for each contact point equally
 	let amt = info.point.length
-	let iters = amt < 2 ? 1 : 10
-	
-	//if (!(a_inv === 0 || b_inv === 0)) restitution = restitution ** 0.025
-	
+	let iters = amt < 2 ? 1 : 20
+		
 	// Callback packages
 	let aPack = {}; let bPack = {};
 	aPack.normal = info.normal; bPack.normal = info.normal;
@@ -874,6 +952,8 @@ function resolveCollision(a, b, info) {
 	let accF = new Array(amt).fill(0)
 	let accR = new Array(amt).fill(0)
 	
+	let condit = !(a_inv === 0 || b_inv === 0)
+	
 	for (let iter = 0; iter < iters; iter++)
 	{
 		for (let i = 0; i < amt; i++) {
@@ -886,11 +966,16 @@ function resolveCollision(a, b, info) {
 			let b_vel = b.vel.add(bpB.scalarCross(b.angVel))
 			let vel_diff = b_vel.subtract(a_vel)
 			
+			if (condit) {
+				console.log(vel_diff)
+				console.log('point'+i.toString())
+				console.log(a_vel)
+				console.log(b_vel)
+				console.log('---')
+			}
+			
 			let impulse = vel_diff.dot(info.normal)
 			let target = targets[i]
-			
-			// Ignore objects already moving away from each other
-			if (impulse > target) continue
 			
 			let f = target - impulse
 			
@@ -914,6 +999,9 @@ function resolveCollision(a, b, info) {
 	for (let iter = 0; iter < iters; iter++)
 	{
 		for (let i = 0; i < amt; i++) {
+			// Check whether or not to continue
+			if (friction === 0) continue
+			
 			let point = info.point[i]
 			let bpA = point.subtract(aCenter)
 			let bpB = point.subtract(bCenter)
